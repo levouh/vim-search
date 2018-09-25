@@ -31,7 +31,7 @@ endfu
 fu! search#blink() abort "{{{1
     " every time `search#blink()` is called, we  must reset the keys `ticks` and
     " `delay` in the dictionary `s:blink`
-    let [ s:blink.ticks, s:blink.delay ] = [ 4, 50 ]
+    let [s:blink.ticks, s:blink.delay] = [4, 50]
 
     call s:blink.delete()
     call s:blink.tick(0)
@@ -126,9 +126,9 @@ fu! s:matches_above()
 
     " this function is called only if `b:changedtick` hasn't changed, so
     " even though the position of the cursor may have changed, `total` can't
-    " have changed ─────────────┐
-    "                           │
-    let [ old_line, old_before, total ] = b:ms_cache
+    " have changed ────────────┐
+    "                          │
+    let [old_line, old_before, total] = b:ms_cache
 
     let line = line('.')
     " find the nearest point from which we can restart counting:
@@ -136,7 +136,7 @@ fu! s:matches_above()
     let to_top    = line
     let to_old    = abs(line - old_line)
     let to_bottom = line('$') - line
-    let min_dist  = min([ to_top, to_old, to_bottom ])
+    let min_dist  = min([to_top, to_old, to_bottom])
 
     if min_dist ==# to_top
         return s:matches_in_range('1,.-1')
@@ -211,7 +211,7 @@ fu! s:matches_count() abort
 
     " check the validity of the cache we have stored in `b:ms_cache`
     " it's only useful if neither the pattern nor the buffer has changed
-    let cache_id = [ @/, b:changedtick ]
+    let cache_id = [@/, b:changedtick]
     if get(b:, 'ms_cache_id', []) ==# cache_id
         let before = s:matches_above()
         let total  = b:ms_cache[-1]
@@ -222,18 +222,18 @@ fu! s:matches_count() abort
     endif
 
     " update the cache
-    let b:ms_cache    = [ line('.'), before, total ]
+    let b:ms_cache    = [line('.'), before, total]
     let b:ms_cache_id = cache_id
 
     let &l:fen = fen_save
     call winrestview(view)
 
-    return [ before + in_line, total ]
+    return [before + in_line, total]
 endfu
 
 fu! s:matches_in_line() abort "{{{1
 " Return number of matches before the cursor, on the current line.
-    let [ line, col ] = [ line('.'), col('.') ]
+    let [line, col] = [line('.'), col('.')]
 
     norm! 0
     let matches = 0
@@ -247,7 +247,7 @@ fu! s:matches_in_line() abort "{{{1
 endfu
 
 fu! s:matches_in_range(range) abort "{{{1
-    let marks_save = [ getpos("'["), getpos("']") ]
+    let marks_save = [getpos("'["), getpos("']")]
     " `:keepj` prevents  us from  polluting the jumplist  (could matter  when we
     " type `<plug>(ms_prev)`)
     let output = execute('keepj '.a:range.'s///gen')
@@ -360,23 +360,23 @@ fu! s:tick(_) abort dict "{{{1
     "  │                 │            ┌─ the blinking is still active
     "  │                 │            │
     if !self.delete() && &hlsearch && active
-        "                                  1 list describing 1 “position”;              ┐
-        "                                 `matchaddpos()` can accept up to 8 positions; │
-        "                                  each position can match:                     │
-        "                                                                               │
-        "                                      • a whole line                           │
-        "                                      • a part of a line                       │
-        "                                      • a character                            │
-        "                                                                               │
-        "                                  The column index starts from 1,              │
-        "                                  like with `col()`. Not from 0.               │
-        "                                                                               │
-        "                                          ┌────────────────────────────────────┤
-        let w:blink_id = matchaddpos('IncSearch', [[ line('.'), max([1, col('.')-3]), 6 ]])
-        "                                            │          │                     │
-        "                                            │          │                     └ with a length of 6 bytes
-        "                                            │          └ begin 3 bytes before cursor
-        "                                            └ on the current line
+        "                                1 list describing 1 “position”;              ┐
+        "                               `matchaddpos()` can accept up to 8 positions; │
+        "                                each position can match:                     │
+        "                                                                             │
+        "                                    • a whole line                           │
+        "                                    • a part of a line                       │
+        "                                    • a character                            │
+        "                                                                             │
+        "                                The column index starts from 1,              │
+        "                                like with `col()`. Not from 0.               │
+        "                                                                             │
+        "                                          ┌──────────────────────────────────┤
+        let w:blink_id = matchaddpos('IncSearch', [[line('.'), max([1, col('.')-3]), 6]])
+        "                                           │          │                     │
+        "                                           │          │                     └ with a length of 6 bytes
+        "                                           │          └ begin 3 bytes before cursor
+        "                                           └ on the current line
     endif
 
     " if the blinking still has ticks to process, recall this function later
