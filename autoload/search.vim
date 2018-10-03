@@ -13,9 +13,15 @@ fu! search#after_slash() abort "{{{1
     "         • error
     "         • prompt
 "}}}
-    let lz_save = &lz
+    let s:lz_save = &lz
     set nolazyredraw
-    call timer_start(0, {-> execute('set '.(lz_save ? '' : 'no').'lazyredraw')})
+    augroup restore_lz
+        au!
+        au CmdlineLeave * let &lz = s:lz_save
+            \ | unlet! s:lz_save
+            \ | au! restore_lz
+            \ | aug! restore_lz
+    augroup END
 
     call feedkeys("\<plug>(ms_custom)", 'i')
 endfu
