@@ -286,6 +286,14 @@ fu! search#nohls_on_leave()
     return ''
 endfu
 
+fu! search#restore_unnamed_register() abort "{{{1
+    " restore unnamed register if we've made it mutate
+    if exists('s:unnamed_reg_save')
+        call call('setreg', s:unnamed_reg_save)
+        unlet! s:unnamed_reg_save
+    endif
+endfu
+
 fu! s:set_hls() abort "{{{1
     " If we don't remove the autocmd, when `n` will be typed, the cursor will
     " move, and 'hls' will be disabled. We want 'hls' to stay enabled even
@@ -559,7 +567,7 @@ fu! search#wrap_star(seq) abort "{{{1
     " because `a:seq` begins with the key `y`;
     " in this case, we save the unnamed register to restore it later
     if index(['v', 'V', "\<c-v>"], mode()) >= 0
-        let reg_save = ['"', getreg('"'), getregtype('"')]
+        let s:unnamed_reg_save = ['"', getreg('"'), getregtype('"')]
     endif
 
     " `winline()` returns the position of the current line from the top line of
@@ -585,11 +593,6 @@ fu! search#wrap_star(seq) abort "{{{1
     \                            + execute('let s:after_slash = 1')
     \                      :       '' })
 
-    " restore unnamed register if we've made it mutate
-    if exists('reg_save')
-        call timer_start(0, { -> call('setreg', reg_save)})
-    endif
-
     " Why     `\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)…`?{{{
     "
     " By default `*` is stupid, it ignores 'smartcase'.
@@ -604,7 +607,8 @@ fu! search#wrap_star(seq) abort "{{{1
     " If it causes an issue, we should test the current mode, and add the
     " keys on the last 2 lines only from normal mode.
 "}}}
-    return a:seq."\<plug>(ms_prev)"
+    return a:seq."\<plug>(ms_restore_unnamed_register)"
+    \           ."\<plug>(ms_prev)"
     \           ."\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)"
     \           ."\<plug>(ms_re-enable_after_slash)"
     \           ."\<plug>(ms_custom)"

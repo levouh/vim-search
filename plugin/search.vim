@@ -199,6 +199,8 @@ xmap  <expr><unique>  #  search#wrap_star("y?\<c-r>=search#escape(0)\<plug>(ms_c
 
 " Customizations (blink, index, …) {{{2
 
+nno  <expr><silent>  <plug>(ms_restore_unnamed_register)  search#restore_unnamed_register()
+
 " This mapping  is used in `search#wrap_star()` to reenable  our autocmd after a
 " search via star &friends.
 nno  <expr>          <plug>(ms_re-enable_after_slash)  search#after_slash_status('delete')
