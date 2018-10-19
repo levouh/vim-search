@@ -191,6 +191,19 @@ xmap  <expr><unique>  *  search#wrap_star("y/\<c-r>=search#escape(1)\<plug>(ms_c
 "                                                                  │└─ validate expression
 "                                                                  └ escape unnamed register
 
+" Why?{{{
+"
+" I often press `g*` by accident, thinking it's necessary to avoid that Vim adds
+" anchors.
+" In reality, it's useless, because Vim doesn't add anchors.
+" `g*` is not a default visual command.
+" It's interpreted as a motion which moves the end of the visual selection to the
+" next occurrence of the word below the cursor.
+" This can result in a big visual selection spanning across several windows.
+" Too distracting.
+"}}}
+xmap g* *
+
 xmap  <expr><unique>  #  search#wrap_star("y?\<c-r>=search#escape(0)\<plug>(ms_cr)\<plug>(ms_cr)")
 "                                                                 │
 "                                                                 └─ direction of the search
