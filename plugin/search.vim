@@ -24,6 +24,7 @@ let g:loaded_search = 1
 
 augroup my_hls_after_slash
     au!
+
     " If 'hls'  and 'is' are  set, then ALL  matches are highlighted  when we're
     " writing a regex.  Not just the next match. See `:h 'is`.
     " So, we make sure 'hls' is set when we enter a search command line.
@@ -254,6 +255,7 @@ ino  <silent>  <plug>(ms_index)  <nop>
 ino  <silent>  <plug>(ms_blink)  <nop>
 ino  <silent>  <plug>(ms_view)   <nop>
 
+" }}}1
 " Options {{{1
 
 " ignore the case when searching for a pattern, containing only lowercase
@@ -265,3 +267,22 @@ set smartcase
 
 " Incremental search
 set incsearch
+
+augroup no_e20_when_cycling_in_history
+    au!
+    " Purpose:{{{
+    " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.
+    " We enter the command-line, and recall an old command which begins with the
+    " visual range "'<,'>".
+    " Because we've set the 'incsearch' option, it will raise this error:
+    "
+    "         E20: Mark not set
+    "
+    " It's distracting.
+    "}}}
+    au CmdlineEnter : if ! line("'<")
+        \ |     call setpos("'<", [0,line('.'),col('.'),0])
+        \ |     call setpos("'>", [0,line('.'),col('.'),0])
+        \ | endif
+augroup END
+
