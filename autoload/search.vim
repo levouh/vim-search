@@ -19,7 +19,7 @@ fu! search#after_slash() abort "{{{1
         au!
         au CmdlineLeave * let &lz = s:lz_save
             \ | unlet! s:lz_save
-            \ | au! restore_lz
+            \ | exe 'au! restore_lz'
             \ | aug! restore_lz
     augroup END
 
@@ -265,7 +265,7 @@ endfu
 fu! search#nohls() abort "{{{1
     augroup my_search
         au!
-        au CursorMoved,CursorMovedI * set nohlsearch | au! my_search
+        au CursorMoved,CursorMovedI * set nohlsearch | exe 'au! my_search' | aug! my_search
     augroup END
     return ''
 endfu
@@ -280,7 +280,7 @@ endfu
 fu! search#nohls_on_leave()
     augroup my_search
         au!
-        au InsertLeave * set nohls | au! my_search
+        au InsertLeave * set nohls | exe 'au! my_search' | aug! my_search
     augroup END
     " return an empty string, so that the function doesn't insert anything
     return ''
@@ -305,6 +305,7 @@ fu! s:set_hls() abort "{{{1
     " be satisfied (it makes sure 'hls' is enabled, to avoid installing the
     " hl, if the cursor has just moved). So, no blinking either.
     sil! au! my_search
+    sil! aug! my_search
     set hlsearch
 endfu
 
