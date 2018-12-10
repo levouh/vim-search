@@ -170,26 +170,6 @@ endfu
 
 " matches_count {{{1
 
-" FIXME:
-" We call `matches_in_range()`  which executes `s///gen` to count  the number of
-" matches. It mutates  the last  substitute string (~).  To preserve  it, inside
-" `matches_count()`, we could add just after `winsaveview()`:
-"
-"     let old_rep = matchstr(getline(search('~', 'cn')), '~')
-"
-" Then, just before `winrestview()`:
-"
-"     if !empty(old_rep)
-"         call execute('s//'.old_rep.'/en')
-"     endif
-"
-" But it would work only if the last substitute string is present in the current
-" buffer. Besides, it also mutates the last flags.
-"
-" The perfect solution would be to execute `s///gen` without Vim logging
-" anything.
-
-
 " Return 2-element array, containing current index and total number of matches
 " of last search pattern in the current buffer.
 "
@@ -254,9 +234,17 @@ endfu
 
 fu! s:matches_in_range(range) abort "{{{1
     let marks_save = [getpos("'["), getpos("']")]
-    " `:keepj` prevents  us from  polluting the jumplist  (could matter  when we
-    " type `<plug>(ms_prev)`)
-    let output = execute('keepj '.a:range.'s///gen')
+    " Why `:keepj`?{{{
+    "
+    " To prevent  polluting the jumplist.
+    " It could matter  when we type `<plug>(ms_prev)`.
+    "}}}
+    " Why `~`?{{{
+    "
+    " To prevent the last substitute string (`~`) from being mutated.
+    "}}}
+    " FIXME: `:s` still mutates the last flags
+    let output = execute('keepj '.a:range.'s//~/gen')
     call setpos("'[", marks_save[0])
     call setpos("']", marks_save[1])
     return str2nr(matchstr(output, '\d\+'))
