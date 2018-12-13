@@ -27,7 +27,7 @@ augroup my_hls_after_slash
 
     " If 'hls'  and 'is' are  set, then ALL  matches are highlighted  when we're
     " writing a regex.  Not just the next match. See `:h 'is`.
-    " So, we make sure 'hls' is set when we enter a search command line.
+    " So, we make sure 'hls' is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
     "               └──┤
     "                  └ we could also write this:     [/\?]
@@ -39,7 +39,7 @@ augroup my_hls_after_slash
     "
     "                            any character (:h file-pattern)
     "
-    "                    We want the literal meaning, to only match a backward search command line.
+    "                    We want the literal meaning, to only match a backward search command-line.
     "                    Not all the others (:h cmdwin-char).
     "
     "                    Inside a collection, it seems `?` doesn't work (no meaning).
@@ -57,7 +57,7 @@ augroup my_hls_after_slash
     "                                au CmdWinEnter /,\?  nno <buffer> cd :echo 'hello'<cr>
     "                                au CmdWinEnter [/\?] nno <buffer> cd :echo 'hello'<cr>
 
-    "                                "         ✘ (match any command line)
+    "                                "         ✘ (match any command-line)
     "                                au CmdWinEnter /,?   nno <buffer> cd :echo 'hello'<cr>
     "                                "         ✘ (only / is affected)
     "                                au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
@@ -148,7 +148,7 @@ nmap  <expr><silent><unique>  gD  search#wrap_gd(0)
 " `<silent>` is important: it prevents `n` and `N` to display their own message
 "
 " without `<silent>`, when our message (`pattern [12/34]`) is displayed,
-" it erases the previous one, and makes look like the command line is “flashing“
+" it erases the previous one, and makes look like the command-line is “flashing“
 nmap  <expr><silent><unique>  n  search#wrap_n(1)
 nmap  <expr><silent><unique>  N  search#wrap_n(0)
 
@@ -160,7 +160,7 @@ nmap  <expr><silent><unique>  N  search#wrap_n(0)
 " that gap.
 "
 " `<silent>` is useful to avoid `/ pattern cr` to display a brief message on
-" the command line.
+" the command-line.
 nmap  <expr><silent><unique>  *  search#wrap_star('*')
 "                                │
 "                                └─ * c-o
