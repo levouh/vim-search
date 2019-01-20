@@ -17,9 +17,9 @@ fu! search#after_slash() abort "{{{1
     set nolazyredraw
     augroup restore_lz
         au!
-        au CmdlineLeave * let &lz = s:lz_save
+        au CmdlineLeave * sil! let &lz = s:lz_save
             \ | unlet! s:lz_save
-        au CmdlineLeave * exe 'au! restore_lz' | aug! restore_lz
+            \ | exe 'au! restore_lz' | aug! restore_lz
     augroup END
 
     call feedkeys("\<plug>(ms_custom)", 'i')
@@ -252,8 +252,8 @@ endfu
 fu! search#nohls() abort "{{{1
     augroup my_search
         au!
-        au CursorMoved,CursorMovedI * set nohlsearch
-        au CursorMoved,CursorMovedI * exe 'au! my_search' | aug! my_search
+        au CursorMoved,CursorMovedI * sil! set nohlsearch
+            \ | exe 'au! my_search' | aug! my_search
     augroup END
     return ''
 endfu
@@ -268,8 +268,8 @@ endfu
 fu! search#nohls_on_leave()
     augroup my_search
         au!
-        au InsertLeave * set nohls
-        au InsertLeave * exe 'au! my_search' | aug! my_search
+        au InsertLeave * sil! set nohls
+            \ | exe 'au! my_search' | aug! my_search
     augroup END
     " return an empty string, so that the function doesn't insert anything
     return ''
