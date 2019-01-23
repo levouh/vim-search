@@ -9,9 +9,9 @@ fu! search#after_slash() abort "{{{1
     " If we set 'lazyredraw', when we search a pattern absent from the buffer,{{{
     " the search command will be displayed, which gives:
     "
-    "         • command
-    "         • error
-    "         • prompt
+    "         - command
+    "         - error
+    "         - prompt
 "}}}
     let s:lz_save = &lz
     set nolazyredraw
@@ -368,9 +368,9 @@ fu! s:tick(_) abort dict "{{{1
         "                               `matchaddpos()` can accept up to 8 positions; │
         "                                each position can match:                     │
         "                                                                             │
-        "                                    • a whole line                           │
-        "                                    • a part of a line                       │
-        "                                    • a character                            │
+        "                                    - a whole line                           │
+        "                                    - a part of a line                       │
+        "                                    - a character                            │
         "                                                                             │
         "                                The column index starts from 1,              │
         "                                like with `col()`. Not from 0.               │
