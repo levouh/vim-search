@@ -15,12 +15,8 @@ fu! search#after_slash() abort "{{{1
 "}}}
     let s:lz_save = &lz
     set nolazyredraw
-    augroup restore_lz
-        au!
-        au CmdlineLeave * sil! let &lz = s:lz_save
-            \ | unlet! s:lz_save
-            \ | exe 'au! restore_lz' | aug! restore_lz
-    augroup END
+    au CmdlineLeave * ++once sil! let &lz = s:lz_save
+        \ | unlet! s:lz_save
 
     call feedkeys("\<plug>(ms_custom)", 'i')
 endfu
@@ -250,10 +246,16 @@ fu! s:matches_in_range(range) abort "{{{1
 endfu
 
 fu! search#nohls() abort "{{{1
+    " Why do you use an augroup in addition to `++once`?{{{
+    "
+    " Because we need a way to remove this one-shot autocmd from `s:set_hls()`.
+    "
+    " If we don't put it in the augroup `my_search`, then we can't run `au! my_search`
+    " elsewhere.
+    "}}}
     augroup my_search
         au!
-        au CursorMoved,CursorMovedI * sil! set nohlsearch
-            \ | exe 'au! my_search' | aug! my_search
+        au CursorMoved,CursorMovedI * ++once sil! set nohls
     augroup END
     return ''
 endfu
@@ -268,8 +270,7 @@ endfu
 fu! search#nohls_on_leave()
     augroup my_search
         au!
-        au InsertLeave * sil! set nohls
-            \ | exe 'au! my_search' | aug! my_search
+        au InsertLeave * ++once sil! set nohls
     augroup END
     " return an empty string, so that the function doesn't insert anything
     return ''
