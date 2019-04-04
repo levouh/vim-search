@@ -228,7 +228,7 @@ nno        <silent>  <plug>(ms_index)  :<c-u>call search#index()<cr>
 " perform a substitution, which is forbidden when the text is locked.
 
 " Regroup all customizations behind `<plug>(ms_custom)`
-"                                         ┌─ install a fire-once autocmd to disable 'hls' when we move
+"                                         ┌─ install a one-shot autocmd to disable 'hls' when we move
 "                                         │               ┌─ unfold if needed, restore the view after `*` &friends
 "                                         │               │
 nmap  <silent>  <plug>(ms_custom)  <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
