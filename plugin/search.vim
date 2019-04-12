@@ -116,7 +116,12 @@ cno  <plug>(ms_up)      <up>
 nno  <plug>(ms_slash)   /
 nno  <plug>(ms_n)       n
 nno  <plug>(ms_N)       N
-nno  <plug>(ms_prev)    <c-o>
+" https://github.com/neovim/neovim/issues/9874#issuecomment-481369640
+if has('nvim')
+    nno <plug>(ms_prev) ``
+else
+    nno <plug>(ms_prev) <c-o>
+endif
 
 " cr  gd  n {{{2
 
