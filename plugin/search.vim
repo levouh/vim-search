@@ -159,9 +159,9 @@ nmap  <expr><silent><unique>  N  search#wrap_n(0)
 
 " Star &friends {{{2
 
-" By default, you can search automatically for the word under the cursor with
-" * or #. But you can't do the same for the text visually selected.
-" The following mappings work in normal mode, but also in visual mode, to fill
+" By default,  you can search automatically  for the word under  the cursor with
+" `*` or `#`. But you can't do the same for the text visually selected.
+" The following mappings work  in normal mode, but also in  visual mode, to fill
 " that gap.
 "
 " `<silent>` is useful to avoid `/ pattern cr` to display a brief message on
@@ -186,16 +186,15 @@ nmap  <expr><silent><unique>  g#  search#wrap_star('g#')
 "}}}
 
 "                        ┌ just append keys at the end to add some fancy features
-"                        │
-"                        │                 ┌─ copy visual selection
-"                        │                 │┌─ search for
-"                        │                 ││      ┌ insert an expression
-"                        │                 ││┌─────┤
+"                        │                 ┌ copy visual selection
+"                        │                 │┌ search for
+"                        │                 ││┌ insert an expression
+"                        │                 ││├─────┐
 xmap  <expr><unique>  *  search#wrap_star("y/\<c-r>=search#escape(1)\<plug>(ms_cr)\<plug>(ms_cr)")
-"                                                   └──────────────┤│             │
-"                                                                  ││             └─ validate search
-"                                                                  │└─ validate expression
-"                                                                  └ escape unnamed register
+"                                                   ├──────────────┘│             │
+"                                                   │               │             └ validate search
+"                                                   │               └ validate expression
+"                                                   └ escape unnamed register
 
 " Why?{{{
 "
@@ -212,9 +211,9 @@ xmap g* *
 
 xmap  <expr><unique>  #  search#wrap_star("y?\<c-r>=search#escape(0)\<plug>(ms_cr)\<plug>(ms_cr)")
 "                                                                 │
-"                                                                 └─ direction of the search
-"                                                                    necessary to know which character among [/?]
-"                                                                    is special, and needs to be escaped
+"                                                                 └ direction of the search
+"                                                                   necessary to know which character among [/?]
+"                                                                   is special, and needs to be escaped
 
 " Customizations (blink, index, …) {{{2
 
