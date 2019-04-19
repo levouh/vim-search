@@ -197,11 +197,11 @@ nmap  <expr><silent><unique>  g#  search#wrap_star('g#')
 "                        │                 │┌ search for
 "                        │                 ││┌ insert an expression
 "                        │                 ││├─────┐
-xmap  <expr><unique>  *  search#wrap_star("y/\<c-r>=search#escape(1)\<plug>(ms_cr)\<plug>(ms_cr)")
-"                                                   ├──────────────┘│             │
-"                                                   │               │             └ validate search
-"                                                   │               └ validate expression
-"                                                   └ escape unnamed register
+xmap  <expr><unique>  *  search#wrap_star('y/<c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
+"                                                  ├──────────────┘│             │
+"                                                  │               │             └ validate search
+"                                                  │               └ validate expression
+"                                                  └ escape unnamed register
 
 " Why?{{{
 "
@@ -216,11 +216,11 @@ xmap  <expr><unique>  *  search#wrap_star("y/\<c-r>=search#escape(1)\<plug>(ms_c
 "}}}
 xmap g* *
 
-xmap  <expr><unique>  #  search#wrap_star("y?\<c-r>=search#escape(0)\<plug>(ms_cr)\<plug>(ms_cr)")
-"                                                                 │
-"                                                                 └ direction of the search
-"                                                                   necessary to know which character among [/?]
-"                                                                   is special, and needs to be escaped
+xmap  <expr><unique>  #  search#wrap_star('y?<c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
+"                                                                │
+"                                                                └ direction of the search
+"                                                                  necessary to know which character among [/?]
+"                                                                  is special, and needs to be escaped
 
 " Customizations (blink, index, …) {{{2
 

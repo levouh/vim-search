@@ -599,12 +599,10 @@ fu! search#wrap_star(seq) abort "{{{1
     " If it causes an issue, we should test the current mode, and add the
     " keys on the last 2 lines only from normal mode.
 "}}}
-    return a:seq."\<plug>(ms_restore_unnamed_register)"
-    \           ."\<plug>(ms_prev)"
-    \           .(index(['v', 'V', "\<c-v>"], mode()) == -1
-    \             ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
-    \           ."\<plug>(ms_re-enable_after_slash)"
-    \           ."\<plug>(ms_custom)"
+    return a:seq . (index(['v', 'V', "\<c-v>"], mode()) == -1
+    \                   ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
+    \            . "\<plug>(ms_re-enable_after_slash)"
+    \            . "\<plug>(ms_custom)"
 endfu
 
 fu! search#restore_cursor_position() abort
