@@ -116,12 +116,19 @@ cno  <plug>(ms_up)      <up>
 nno  <plug>(ms_slash)   /
 nno  <plug>(ms_n)       n
 nno  <plug>(ms_N)       N
-" https://github.com/neovim/neovim/issues/9874#issuecomment-481369640
-if has('nvim')
-    nno <plug>(ms_prev) ``
-else
-    nno <plug>(ms_prev) <c-o>
-endif
+" Why don't you simply use `C-o` in the rhs?{{{
+"
+" It worked in the past, but not anymore.
+" In Nvim, the jumplist is not updated like in Vim.
+" If the cursor line doesn't change, no entry is added.
+"
+" We could use ``` `` ``` in Nvim and `C-o` in Vim.
+" But there would still be an issue when we press `*` while visually selecting a
+" unique text in the buffer.
+"
+" https://github.com/neovim/neovim/issues/9874
+"}}}
+nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 
 " cr  gd  n {{{2
 

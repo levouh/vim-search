@@ -554,6 +554,7 @@ fu! search#wrap_n(is_fwd) abort "{{{1
 endfu
 
 fu! search#wrap_star(seq) abort "{{{1
+    let s:curpos = getcurpos()
     " if the function is invoked from visual mode, it will copy the visual selection,
     " because `a:seq` begins with the key `y`;
     " in this case, we save the unnamed register to restore it later
@@ -600,9 +601,17 @@ fu! search#wrap_star(seq) abort "{{{1
 "}}}
     return a:seq."\<plug>(ms_restore_unnamed_register)"
     \           ."\<plug>(ms_prev)"
-    \           ."\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)"
+    \           .(index(['v', 'V', "\<c-v>"], mode()) == -1
+    \             ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
     \           ."\<plug>(ms_re-enable_after_slash)"
     \           ."\<plug>(ms_custom)"
+endfu
+
+fu! search#restore_cursor_position() abort
+    if exists('s:curpos')
+        call setpos('.', s:curpos)
+        unlet! s:curpos
+    endif
 endfu
 
 " Variables {{{1
