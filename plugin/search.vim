@@ -3,6 +3,31 @@ if exists('g:loaded_search')
 endif
 let g:loaded_search = 1
 
+" TODO: Vim's patch 8.1.1270 has added native support for match index after a search:{{{
+"
+" https://github.com/vim/vim/releases/tag/v8.1.1270
+"
+" You can test it like so:
+"
+"     $ vim -Nu NONE +'set shm-=S' ~/.zshrc
+"     /the
+"
+" Wait until this patch is ported to Nvim, then maybe you should remove all your
+" code implementing this feature.
+"
+" However, be aware of 2 limitations.
+" You can't position the indicator on the command-line (it's at the far right).
+" You can't get the index of a match beyond 99:
+"
+"     /pat    [1/>99]   1
+"     /pat    [2/>99]   2
+"     /pat    [3/>99]   3
+"     ...
+"     /pat    [99/>99]  99
+"     /pat    [99/>99]  100
+"     /pat    [99/>99]  101
+"}}}
+
 " Links {{{1
 
 " Ideas for other implementations.
