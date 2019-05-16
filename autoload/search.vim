@@ -255,7 +255,12 @@ fu! search#nohls() abort "{{{1
     "}}}
     augroup my_search
         au!
-        au CursorMoved,CursorMovedI * ++once sil! set nohls
+        unlet! s:one_shot
+        au CursorMoved,CursorMovedI * ++once
+            \ if get(s:, 'one_shot', 1)
+            \ |     let s:one_shot = 0
+            \ |     set nohls
+            \ | endif
     augroup END
     return ''
 endfu
