@@ -200,12 +200,12 @@ nmap  <expr><silent><unique>  N  search#wrap_n(0)
 " the command-line.
 nmap  <expr><silent><unique>  *  search#wrap_star('*')
 "                                │
-"                                └─ * c-o
-"                                   / up cr c-o
-"                                   <plug>(ms_nohls)
-"                                   <plug>(ms_view)  ⇔  <number> c-e / c-y
-"                                   <plug>(ms_blink)
-"                                   <plug>(ms_index)
+"                                └ * c-o
+"                                  / up cr c-o
+"                                  <plug>(ms_nohls)
+"                                  <plug>(ms_view)  ⇔  <number> c-e / c-y
+"                                  <plug>(ms_blink)
+"                                  <plug>(ms_index)
 
 nmap  <expr><silent><unique>  #   search#wrap_star('#')
 nmap  <expr><silent><unique>  g*  search#wrap_star('g*')
@@ -217,6 +217,30 @@ nmap  <expr><silent><unique>  g#  search#wrap_star('g#')
 " So our implementation of `v_*` and `v_#` don't add them.
 "}}}
 
+" FIXME: The plugin may temporarily be broken when you visually select a blockwise text.{{{
+"
+" As an example, select 'foo' and 'bar', and press `*`:
+"
+"     foo
+"     bar
+"     /\Vfoo\nbar~
+"     E486: Pattern not found: \Vfoo\nbar~
+"     Press ENTER or type command to continue~
+"
+" Now, search  for `foo`: the highlighting  stays active even after  we move the
+" cursor (✘).
+" Press `n`, then move the cursor: the highlighting is disabled (✔).
+" Now, search for `foo` again: the highlighting is not enabled (✘).
+"
+" ---
+"
+" I think the issue is due to  the mapping not being processed entirely, because
+" of the first error.
+"
+" ---
+"
+" For now one solution is to press `*` on a word in normal mode.
+"}}}
 "                        ┌ just append keys at the end to add some fancy features
 "                        │                 ┌ copy visual selection
 "                        │                 │┌ search for
