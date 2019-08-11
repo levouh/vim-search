@@ -54,10 +54,10 @@ augroup my_hls_after_slash
     " writing a regex.  Not just the next match. See `:h 'is`.
     " So, we make sure 'hls' is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
-    "               └──┤
-    "                  └ we could also write this:     [/\?]
-    "                    but it doesn't work on Windows:
-    "                    https://github.com/vim/vim/pull/2198#issuecomment-341131934
+    "               ├──┘
+    "               └ we could also write this:     [/\?]
+    "                 but it doesn't work on Windows:
+    "                 https://github.com/vim/vim/pull/2198#issuecomment-341131934
     "
     "                    Also, why escape the question mark? {{{
     "                    Because, in the pattern of an autocmd, it has a special meaning:
@@ -101,15 +101,15 @@ augroup my_hls_after_slash
     "
     " To disable this part of the autocmd when we do `/ up cr c-o`.
     "}}}
-    " Why `v:errmsg…` ?{{{
+    " Why `v:errmsg...` ?{{{
     "
     " Open 2 windows with 2 buffers A and B.
     " In A, search for a pattern which has a match in B but not in A.
     " Move the cursor: the highlighting should be disabled in B, but it's not.
     " This is because Vim stops processing a mapping as soon as an error occurs:
     "
-    "         https://github.com/junegunn/vim-slash/issues/5
-    "         :h map-error
+    " https://github.com/junegunn/vim-slash/issues/5
+    " `:h map-error`
 "}}}
     " Why the timer?{{{
     "
