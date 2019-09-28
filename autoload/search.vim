@@ -9,9 +9,9 @@ fu! search#after_slash() abort "{{{1
     " If we set 'lazyredraw', when we search a pattern absent from the buffer,{{{
     " the search command will be displayed, which gives:
     "
-    "         - command
-    "         - error
-    "         - prompt
+    "    - command
+    "    - error
+    "    - prompt
 "}}}
     let s:lz_save = &lz
     set nolazyredraw
@@ -107,15 +107,15 @@ endfu
 "
 " How it works? ; if the current position is near:
 "
-"     - the end, it's faster to compute the number of matches from the current
-"       line to the end, then subtract it from the total (the function is only
-"       invoked if the buffer and the pattern haven't changed, so `total` is the
-"       same as the last time)
+"    - the end, it's faster to compute the number of matches from the current
+"      line to the end, then subtract it from the total (the function is only
+"      invoked if the buffer and the pattern haven't changed, so `total` is the
+"      same as the last time)
 "
-"     - the position where we were last time we invoked this function,
-"       it's faster to compute the number of matches between the 2 positions, then
-"       add/subtract it from the cached number of matches which were above the
-"       old position
+"    - the position where we were last time we invoked this function,
+"      it's faster to compute the number of matches between the 2 positions, then
+"      add/subtract it from the cached number of matches which were above the
+"      old position
 
 fu! s:matches_above()
     " if we're at the beginning of the buffer, there can't be anything above
@@ -149,14 +149,12 @@ fu! s:matches_above()
     elseif old_line < line
         return old_before + s:matches_in_range(old_line.',.-1')
         "                   │
-        "                   └─ number of matches between old position and
-        "                   above current one
+        "                   └ number of matches between old position and above current one
 
     elseif old_line > line
         return old_before - s:matches_in_range('.,'.old_line.'-1')
         "                   │
-        "                   └─ number of matches between current position and
-        "                   above last one
+        "                   └ number of matches between current position and above last one
 
     else " old_line ==# line
         return old_before
@@ -173,41 +171,47 @@ endfu
 " But, Ex commands only work on entire lines. So, we'll split the computing in
 " 2 parts:
 "
-"     - number of matches above current line (`:s///gen`)
-"     - number of matches on current line (`:while + search()`)
+"    - number of matches above current line (`:s///gen`)
+"    - number of matches on current line (`:while + search()`)
 
 fu! s:matches_count() abort
     let view = winsaveview()
     " folds affect range of ex commands:
-    "     https://stackoverflow.com/q/33190754/8243465
+    " https://stackoverflow.com/q/33190754/8243465
     "
     " we don't want folds to affect `:s///gen`
-    let fen_save = &l:fen
-    setl nofoldenable
+    let [fen_save, winid, bufnr] = [&l:fen, win_getid(), bufnr('%')]
 
-    " We must compute the number of matches on the current line NOW.
-    " As soon as we invoke `s:matches_above()` or `s:matches_in_range()`,
-    " we'll be somewhere else.
-    let in_line = s:matches_in_line()
+    try
+        setl nofoldenable
 
-    " check the validity of the cache we have stored in `b:ms_cache`
-    " it's only useful if neither the pattern nor the buffer has changed
-    let cache_id = [@/, b:changedtick]
-    if get(b:, 'ms_cache_id', []) ==# cache_id
-        let before = s:matches_above()
-        let total  = b:ms_cache[-1]
-    else
-        " if the cache can't be used, recompute
-        let before = line('.') ==# 1 ? 0 : s:matches_in_range('1,.-1')
-        let total  = before + s:matches_in_range('.,$')
-    endif
+        " We must compute the number of matches on the current line NOW.
+        " As soon as we invoke `s:matches_above()` or `s:matches_in_range()`,
+        " we'll be somewhere else.
+        let in_line = s:matches_in_line()
 
-    " update the cache
-    let b:ms_cache    = [line('.'), before, total]
-    let b:ms_cache_id = cache_id
+        " check the validity of the cache we have stored in `b:ms_cache`
+        " it's only useful if neither the pattern nor the buffer has changed
+        let cache_id = [@/, b:changedtick]
+        if get(b:, 'ms_cache_id', []) ==# cache_id
+            let before = s:matches_above()
+            let total  = b:ms_cache[-1]
+        else
+            " if the cache can't be used, recompute
+            let before = line('.') ==# 1 ? 0 : s:matches_in_range('1,.-1')
+            let total  = before + s:matches_in_range('.,$')
+        endif
 
-    let &l:fen = fen_save
-    call winrestview(view)
+        " update the cache
+        let b:ms_cache    = [line('.'), before, total]
+        let b:ms_cache_id = cache_id
+    finally
+        if winbufnr(winid) == bufnr
+            let [tabnr, winnr] = win_id2tabwin(winid)
+            call settabwinvar(tabnr, winnr, '&fen', fen_save)
+        endif
+        call winrestview(view)
+    endtry
 
     return [before + in_line, total]
 endfu
@@ -329,9 +333,9 @@ fu! s:tick(_) abort dict "{{{1
     " dictionary `s:blink`, we have a single object which includes the whole
     " configuration of the blinking:
     "
-    "     - how does it blink?                           s:blink.tick
-    "     - how many times does it blink?                s:blink.ticks
-    "     - how much time does it wait between 2 ticks?  s:blink.delay
+    "    - how does it blink?                           s:blink.tick
+    "    - how many times does it blink?                s:blink.ticks
+    "    - how much time does it wait between 2 ticks?  s:blink.delay
     "
     " It gives us a consistent way to change the configuration of the blinking.
     "
@@ -364,10 +368,10 @@ fu! s:tick(_) abort dict "{{{1
 
     "  (re-)install the hl if:
     "
-    "  ┌─ try to delete the hl, and check we haven't been able to do so
-    "  │  if we have, we don't want to re-install a hl immediately (only next tick)
-    "  │                 ┌─ the cursor hasn't moved
-    "  │                 │            ┌─ the blinking is still active
+    "  ┌ try to delete the hl, and check we haven't been able to do so
+    "  │ if we have, we don't want to re-install a hl immediately (only next tick)
+    "  │                 ┌ the cursor hasn't moved
+    "  │                 │            ┌ the blinking is still active
     "  │                 │            │
     if !self.delete() && &hlsearch && active
         "                                1 list describing 1 “position”;              ┐
@@ -394,8 +398,8 @@ fu! s:tick(_) abort dict "{{{1
         " call `s:blink.tick()` (current function) after `s:blink.delay` ms
         call timer_start(self.delay, self.tick)
         "                            │
-        "                            └─ we need `self.key` to be evaluated as a key in a dictionary,
-        "                               whose value is a funcref, so don't put quotes around
+        "                            └ we need `self.key` to be evaluated as a key in a dictionary,
+        "                              whose value is a funcref, so don't put quotes around
     endif
 endfu
 " What does `s:tick()` do? {{{

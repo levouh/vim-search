@@ -73,9 +73,9 @@ augroup my_hls_after_slash
     "                            augroup test_pattern
     "                                au!
     "                                "         ✔
-    "                                               ┌─ it probably works because the pattern
-    "                                               │  is supposed to be a single character,
-    "                                               │  so Vim interprets `?` literally, when it's alone
+    "                                               ┌ it probably works because the pattern
+    "                                               │ is supposed to be a single character,
+    "                                               │ so Vim interprets `?` literally, when it's alone
     "                                               │
     "                                au CmdWinEnter ?     nno <buffer> cd :echo 'hello'<cr>
     "                                au CmdWinEnter \?    nno <buffer> cd :echo 'hello'<cr>
@@ -185,7 +185,7 @@ nmap  <expr><silent><unique>  gD  search#wrap_gd(0)
 " `<silent>` is important: it prevents `n` and `N` to display their own message
 "
 " without `<silent>`, when our message (`pattern [12/34]`) is displayed,
-" it erases the previous one, and makes look like the command-line is “flashing“
+" it erases the previous one, and makes look like the command-line is flickering
 nmap  <expr><silent><unique>  n  search#wrap_n(1)
 nmap  <expr><silent><unique>  N  search#wrap_n(0)
 
@@ -288,8 +288,8 @@ nno        <silent>  <plug>(ms_index)  :<c-u>call search#index()<cr>
 " perform a substitution, which is forbidden when the text is locked.
 
 " Regroup all customizations behind `<plug>(ms_custom)`
-"                                         ┌─ install a one-shot autocmd to disable 'hls' when we move
-"                                         │               ┌─ unfold if needed, restore the view after `*` &friends
+"                                         ┌ install a one-shot autocmd to disable 'hls' when we move
+"                                         │               ┌ unfold if needed, restore the view after `*` &friends
 "                                         │               │
 nmap  <silent>  <plug>(ms_custom)  <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
 "                                                                         │               │
