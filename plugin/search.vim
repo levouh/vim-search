@@ -92,7 +92,7 @@ augroup my_hls_after_slash
     " Restore the state of 'hls', then invoke `after_slash()`.
     " And if the search has just failed, invoke `nohls()` to disable 'hls'.
     au CmdlineLeave /,\? call search#toggle_hls('restore')
-                     \ | if getcmdline() isnot# '' && search#after_slash_status() ==# 1
+                     \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
                      \ |     call search#after_slash()
                      \ |     call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
                      \ | endif
@@ -336,7 +336,7 @@ augroup no_e20_when_cycling_in_history
     " visual range "'<,'>".
     " Because we've set the 'incsearch' option, it will raise this error:
     "
-    "         E20: Mark not set
+    "     E20: Mark not set
     "
     " It's distracting.
     "}}}

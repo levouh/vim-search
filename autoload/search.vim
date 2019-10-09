@@ -52,7 +52,7 @@ fu! s:delete() abort dict "{{{1
 endfu
 
 fu! search#escape(is_fwd) abort "{{{1
-    return '\V'.substitute(escape(@", '\'.(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
+    return '\V'..substitute(escape(@", '\'.(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
 endfu
 
 fu! search#index() abort "{{{1
@@ -60,25 +60,25 @@ fu! search#index() abort "{{{1
 
     " We  delay  the `:echo`,  otherwise  it's  automatically  erased in  a  Vim
     " terminal buffer. Also, we  have come to the conclusion that,  to display a
-    " message from a function called from a mapping, RELIABLY in Vim and Neovim,
-    " we must avoid `<expr>`, and we must delay the `:echo`.
+    " message  from a  function called  from a  mapping, *reliably*  in Vim  and
+    " Neovim, we must avoid `<expr>`, and we must delay the `:echo`.
     "
     " For more info, see our mapping changing the lightness of the colorscheme.
 
-    let msg = '['.current.'/'.total.'] '.@/
-    call timer_start(0, {-> execute('echo '.string(msg), '')})
-    " Do NOT use `printf()`:{{{
+    let msg = '['..current..'/'..total..'] '..@/
+    call timer_start(0, {-> execute('echo '..string(msg), '')})
+    " Do *not* use `printf()`:{{{
     "
-    "         call timer_start(0, {-> execute(printf('echo ''[%s/%s] %s''', current, total, @/), '')})
+    "     call timer_start(0, {-> execute(printf('echo ''[%s/%s] %s''', current, total, @/), '')})
     "
     " It would break when the search pattern contains a single quote.
-    " We need `string()` to take care of the message BEFORE passing it to `:echo`.
+    " We need `string()` to take care of the message *before* passing it to `:echo`.
     "
     " And we couldn't include `string()` inside the format passed to `printf()`:
     "
-    "         execute(printf('echo string(%s)', msg))
+    "     execute(printf('echo string(%s)', msg))
     "
-    " … because  when `printf()`  would replace the  %s item,  the surrounding
+    " ... because  when `printf()`  would replace the  %s item,  the surrounding
     " quotes around the  message would be removed, and  `string()` would receive
     " an  unquoted string  which  would often  cause  an error  (E121: Undefined
     " variable). The exact same thing happens here:
@@ -88,7 +88,7 @@ fu! search#index() abort "{{{1
     " Remember:
     " `printf('…%s…%s…')` is really equivalent to a concatenation of strings.
     " That is,  after being  processed, the quotes  surrounding the  strings are
-    " REMOVED in both cases:
+    " *removed* in both cases:
     "
     "       echo 'here is '.var
     "     ⇔ echo printf('here is %s', var)
@@ -98,7 +98,6 @@ fu! search#index() abort "{{{1
     " been removed.
     "}}}
 endfu
-
 
 " matches_above {{{1
 
@@ -123,40 +122,40 @@ fu! s:matches_above()
     " it probably also prevents the range `1,.-1` = `1,0` from prompting us with:
     "
     "     Backwards range given, OK to swap (y/n)?
-    if line('.') ==# 1 | return 0 | endif
+    if line('.') == 1 | return 0 | endif
 
     " this function is called only if `b:changedtick` hasn't changed, so
     " even though the position of the cursor may have changed, `total` can't
     " have changed ────────────┐
     "                          │
-    let [old_line, old_before, total] = b:ms_cache
+    let [old_lnum, old_before, total] = b:ms_cache
 
-    let line = line('.')
+    let lnum = line('.')
     " find the nearest point from which we can restart counting:
-    "         top, bottom, or previously cached line
-    let to_top    = line
-    let to_old    = abs(line - old_line)
-    let to_bottom = line('$') - line
+    " top, bottom, or previously cached line
+    let to_top    = lnum
+    let to_old    = abs(lnum - old_lnum)
+    let to_bottom = line('$') - lnum
     let min_dist  = min([to_top, to_old, to_bottom])
 
-    if min_dist ==# to_top
+    if min_dist == to_top
         return s:matches_in_range('1,.-1')
 
-    elseif min_dist ==# to_bottom
+    elseif min_dist == to_bottom
         return total - s:matches_in_range('.,$')
 
-    " otherwise, min_dist ==# to_old, we just need to check relative line order
-    elseif old_line < line
-        return old_before + s:matches_in_range(old_line.',.-1')
+    " otherwise, `min_dist == to_old`, we just need to check relative line order
+    elseif old_lnum < lnum
+        return old_before + s:matches_in_range(old_lnum..',.-1')
         "                   │
         "                   └ number of matches between old position and above current one
 
-    elseif old_line > line
-        return old_before - s:matches_in_range('.,'.old_line.'-1')
+    elseif old_lnum > lnum
+        return old_before - s:matches_in_range('.,'..old_lnum..'-1')
         "                   │
         "                   └ number of matches between current position and above last one
 
-    else " old_line ==# line
+    else " old_lnum == lnum
         return old_before
     endif
 endfu
@@ -193,12 +192,12 @@ fu! s:matches_count() abort
         " check the validity of the cache we have stored in `b:ms_cache`
         " it's only useful if neither the pattern nor the buffer has changed
         let cache_id = [@/, b:changedtick]
-        if get(b:, 'ms_cache_id', []) ==# cache_id
+        if get(b:, 'ms_cache_id', []) == cache_id
             let before = s:matches_above()
             let total  = b:ms_cache[-1]
         else
             " if the cache can't be used, recompute
-            let before = line('.') ==# 1 ? 0 : s:matches_in_range('1,.-1')
+            let before = line('.') == 1 ? 0 : s:matches_in_range('1,.-1')
             let total  = before + s:matches_in_range('.,$')
         endif
 
@@ -243,7 +242,7 @@ fu! s:matches_in_range(range) abort "{{{1
     " To prevent the last substitute string (`~`) from being mutated.
     "}}}
     " FIXME: `:s` still mutates the last flags
-    let output = execute('keepj '.a:range.'s//~/gen')
+    let output = execute('keepj '..a:range..'s//~/gen')
     call setpos("'[", marks_save[0])
     call setpos("']", marks_save[1])
     return str2nr(matchstr(output, '\d\+'))
@@ -323,11 +322,11 @@ fu! s:tick(_) abort dict "{{{1
     " We need the blinking to stop and not go on forever.
     " 2 solutions:
     "
-    "     1. use the 'repeat' option of the `timer_start()` function:
+    "    1. use the 'repeat' option of the `timer_start()` function:
     "
-    "         call timer_start(self.delay, self.tick, { 'repeat' : 6 })
+    "         call timer_start(self.delay, self.tick, {'repeat' : 6})
     "
-    "     2. decrement a counter every time `blink.tick()` is called
+    "    2. decrement a counter every time `blink.tick()` is called
     "
     " We'll use the 2nd solution, because by adding the counter to the
     " dictionary `s:blink`, we have a single object which includes the whole
@@ -450,7 +449,7 @@ fu! search#toggle_hls(action) abort "{{{1
         set hls
     else
         if exists('s:hls_on')
-            exe 'set '.(s:hls_on ? '' : 'no').'hls'
+            exe 'set '..(s:hls_on ? '' : 'no')..'hls'
             unlet! s:hls_on
         endif
     endif
@@ -460,7 +459,7 @@ fu! search#view() abort "{{{1
 " make a nice view, by opening folds if any, and by restoring the view if
 " it changed but we wanted to stay where we were (happens with `*` and friends)
 
-    let seq = foldclosed('.') !=# -1 ? 'zMzv' : ''
+    let seq = foldclosed('.') != -1 ? 'zMzv' : ''
 
     " What are `s:winline` and `s:windiff`? {{{
     "
@@ -502,10 +501,10 @@ fu! search#view() abort "{{{1
         " Thus, we use `C-e`. Otherwise, we use `C-y`. Each time we must
         " prefix the key with the right count (± `windiff`).
 
-        let seq .= windiff > 0
-               \ ?     windiff."\<c-e>"
+        let seq ..= windiff > 0
+               \ ?     windiff.."\<c-e>"
                \ : windiff < 0
-               \ ?     -windiff."\<c-y>"
+               \ ?     -windiff.."\<c-y>"
                \ :     ''
     endif
 
@@ -517,7 +516,7 @@ fu! search#wrap_gd(is_fwd) abort "{{{1
     " If we press `gd`  on the 1st occurrence of a  keyword, the highlighting is
     " still not disabled.
     call timer_start(0, {-> search#nohls()})
-    return (a:is_fwd ? 'gd' : 'gD')."\<plug>(ms_custom)"
+    return (a:is_fwd ? 'gd' : 'gD').."\<plug>(ms_custom)"
 endfu
 
 fu! search#wrap_n(is_fwd) abort "{{{1
@@ -531,13 +530,13 @@ fu! search#wrap_n(is_fwd) abort "{{{1
     " If we change the value of `seq` (`n` to `N` or `N` to `n`), when we perform
     " a backward search we have the error:
     "
-    "         E223: recursive mapping
+    "     E223: recursive mapping
     "
     " Why? Because we are stuck going back and forth between 2 mappings:
     "
-    "         echo v:searchforward  →  0
+    "     echo v:searchforward  →  0
     "
-    "         hit `n`  →  wrap_n() returns `N`  →  returns `n`  →  returns `N`  →  …
+    "     hit `n`  →  wrap_n() returns `N`  →  returns `n`  →  returns `N`  →  ...
     "
     " To prevent being stuck in an endless expansion, use non-recursive versions
     " of `n` and `N`.
@@ -545,7 +544,7 @@ fu! search#wrap_n(is_fwd) abort "{{{1
 
     call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : '' })
 
-    return seq."\<plug>(ms_custom)"
+    return seq.."\<plug>(ms_custom)"
 
     " Vim doesn't wait for everything to be expanded, before beginning typing.
     " As soon as it finds something which can't be remapped, it types it.
@@ -582,17 +581,17 @@ fu! search#wrap_star(seq) abort "{{{1
     " cr`, otherwise it would badly interfere.
     let s:after_slash = 0
 
-    " If we press * on nothing, it  raises E348 or E349, and Vim highlights last
-    " search pattern. But because of the error, Vim didn't finish processing the
-    " mapping.   Therefore, the  highlighting is  not cleared  when we  move the
-    " cursor. Make sure it is.
+    " If we  press `*` on  nothing, it raises E348  or E349, and  Vim highlights
+    " last  search  pattern. But  because  of   the  error,  Vim  didn't  finish
+    " processing the mapping.   Therefore, the highlighting is  not cleared when
+    " we move the cursor. Make sure it is.
     "
     " Also, make sure to re-enable the invokation of `after_slash()` after a `/`
     " search.
-    call timer_start(0, { -> v:errmsg[:4] =~# '\vE%(348|349):'
-    \                      ?       search#nohls()
-    \                            + execute('let s:after_slash = 1')
-    \                      :       '' })
+    call timer_start(0, {-> v:errmsg[:4] =~# 'E\%(348\|349\):'
+    \                     ?       search#nohls()
+    \                           + execute('let s:after_slash = 1')
+    \                     :       ''})
 
     " Why     `\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)…`?{{{
     "
@@ -608,10 +607,10 @@ fu! search#wrap_star(seq) abort "{{{1
     " If it causes an issue, we should test the current mode, and add the
     " keys on the last 2 lines only from normal mode.
 "}}}
-    return a:seq . (index(['v', 'V', "\<c-v>"], mode()) == -1
+    return a:seq..(index(['v', 'V', "\<c-v>"], mode()) == -1
     \                   ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
-    \            . "\<plug>(ms_re-enable_after_slash)"
-    \            . "\<plug>(ms_custom)"
+    \            .."\<plug>(ms_re-enable_after_slash)"
+    \            .."\<plug>(ms_custom)"
 endfu
 
 fu! search#restore_cursor_position() abort
