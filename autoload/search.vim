@@ -3,7 +3,7 @@ if exists('g:autoloaded_search')
 endif
 let g:autoloaded_search = 1
 
-fu! search#after_slash() abort "{{{1
+fu search#after_slash() abort "{{{1
     call s:set_hls()
 
     " If we set 'lazyredraw', when we search a pattern absent from the buffer,{{{
@@ -21,7 +21,7 @@ fu! search#after_slash() abort "{{{1
     call feedkeys("\<plug>(ms_custom)", 'i')
 endfu
 
-fu! search#after_slash_status(...) abort "{{{1
+fu search#after_slash_status(...) abort "{{{1
     if a:0
         unlet! s:after_slash
         return ''
@@ -29,7 +29,7 @@ fu! search#after_slash_status(...) abort "{{{1
     return get(s:, 'after_slash', 1)
 endfu
 
-fu! search#blink() abort "{{{1
+fu search#blink() abort "{{{1
     " every time `search#blink()` is called, we  must reset the keys `ticks` and
     " `delay` in the dictionary `s:blink`
     let [s:blink.ticks, s:blink.delay] = [4, 50]
@@ -39,7 +39,7 @@ fu! search#blink() abort "{{{1
     return ''
 endfu
 
-fu! s:delete() abort dict "{{{1
+fu s:delete() abort dict "{{{1
     " This function has  side effects (it changes  the state of the  buffer), but we
     " also use it for its output.  In `s:blink.tick()`, we test the latter to decide
     " whether we should create a match.
@@ -51,11 +51,11 @@ fu! s:delete() abort dict "{{{1
     " no need to return 0, that's what a function does by default
 endfu
 
-fu! search#escape(is_fwd) abort "{{{1
+fu search#escape(is_fwd) abort "{{{1
     return '\V'..substitute(escape(@", '\'.(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
 endfu
 
-fu! search#index() abort "{{{1
+fu search#index() abort "{{{1
     let [current, total] = s:matches_count()
 
     " We  delay  the `:echo`,  otherwise  it's  automatically  erased in  a  Vim
@@ -116,7 +116,7 @@ endfu
 "      add/subtract it from the cached number of matches which were above the
 "      old position
 
-fu! s:matches_above()
+fu s:matches_above()
     " if we're at the beginning of the buffer, there can't be anything above
     "
     " it probably also prevents the range `1,.-1` = `1,0` from prompting us with:
@@ -173,7 +173,7 @@ endfu
 "    - number of matches above current line (`:s///gen`)
 "    - number of matches on current line (`:while + search()`)
 
-fu! s:matches_count() abort
+fu s:matches_count() abort
     let view = winsaveview()
     " folds affect range of ex commands:
     " https://stackoverflow.com/q/33190754/8243465
@@ -215,7 +215,7 @@ fu! s:matches_count() abort
     return [before + in_line, total]
 endfu
 
-fu! s:matches_in_line() abort "{{{1
+fu s:matches_in_line() abort "{{{1
 " Return number of matches before the cursor, on the current line.
     let [line, col] = [line('.'), col('.')]
 
@@ -230,7 +230,7 @@ fu! s:matches_in_line() abort "{{{1
     return matches
 endfu
 
-fu! s:matches_in_range(range) abort "{{{1
+fu s:matches_in_range(range) abort "{{{1
     let marks_save = [getpos("'["), getpos("']")]
     " Why `:keepj`?{{{
     "
@@ -248,7 +248,7 @@ fu! s:matches_in_range(range) abort "{{{1
     return str2nr(matchstr(output, '\d\+'))
 endfu
 
-fu! search#nohls() abort "{{{1
+fu search#nohls() abort "{{{1
     " Why do you use an augroup in addition to `++once`?{{{
     "
     " Because we need a way to remove this one-shot autocmd from `s:set_hls()`.
@@ -275,7 +275,7 @@ endfu
 "     c / pattern cr
 "
 " `cr` enables 'hls', we need to disable it
-fu! search#nohls_on_leave()
+fu search#nohls_on_leave()
     augroup my_search
         au!
         au InsertLeave * ++once sil! set nohls
@@ -284,7 +284,7 @@ fu! search#nohls_on_leave()
     return ''
 endfu
 
-fu! search#restore_unnamed_register() abort "{{{1
+fu search#restore_unnamed_register() abort "{{{1
     " restore unnamed register if we've made it mutate
     if exists('s:unnamed_reg_save')
         call call('setreg', s:unnamed_reg_save)
@@ -292,7 +292,7 @@ fu! search#restore_unnamed_register() abort "{{{1
     endif
 endfu
 
-fu! s:set_hls() abort "{{{1
+fu s:set_hls() abort "{{{1
     " If we don't remove the autocmd, when `n` will be typed, the cursor will
     " move, and 'hls' will be disabled. We want 'hls' to stay enabled even
     " after the `n` motion. Same issue with the motion after a `/` search (not
@@ -307,10 +307,10 @@ fu! s:set_hls() abort "{{{1
     set hlsearch
 endfu
 
-fu! s:tick(_) abort dict "{{{1
-"          │
-"          └ when `timer_start()` will call this function, it will send
-"            the timer ID
+fu s:tick(_) abort dict "{{{1
+"         │
+"         └ when `timer_start()` will call this function, it will send
+"           the timer ID
 
     let self.ticks -= 1
 
@@ -427,7 +427,7 @@ endfu
 "
 " Originally, junegunn wrote this function as an anonymous one:
 "
-"         fu! s:blink.tick()
+"         fu s:blink.tick()
 "             …
 "         endfu
 "
@@ -443,7 +443,7 @@ endfu
 " Same remark for `s:delete()`. Don't make it anonymous.
 "}}}
 
-fu! search#toggle_hls(action) abort "{{{1
+fu search#toggle_hls(action) abort "{{{1
     if a:action is# 'save'
         let s:hls_on = &hls
         set hls
@@ -455,7 +455,7 @@ fu! search#toggle_hls(action) abort "{{{1
     endif
 endfu
 
-fu! search#view() abort "{{{1
+fu search#view() abort "{{{1
 " make a nice view, by opening folds if any, and by restoring the view if
 " it changed but we wanted to stay where we were (happens with `*` and friends)
 
@@ -511,7 +511,7 @@ fu! search#view() abort "{{{1
     return seq
 endfu
 
-fu! search#wrap_gd(is_fwd) abort "{{{1
+fu search#wrap_gd(is_fwd) abort "{{{1
     call s:set_hls()
     " If we press `gd`  on the 1st occurrence of a  keyword, the highlighting is
     " still not disabled.
@@ -519,7 +519,7 @@ fu! search#wrap_gd(is_fwd) abort "{{{1
     return (a:is_fwd ? 'gd' : 'gD').."\<plug>(ms_custom)"
 endfu
 
-fu! search#wrap_n(is_fwd) abort "{{{1
+fu search#wrap_n(is_fwd) abort "{{{1
     call s:set_hls()
 
     " We want `n` and `N` to move consistently no matter the direction of the
@@ -561,7 +561,7 @@ fu! search#wrap_n(is_fwd) abort "{{{1
     " would occur at the current position, instead of the next match.
 endfu
 
-fu! search#wrap_star(seq) abort "{{{1
+fu search#wrap_star(seq) abort "{{{1
     let s:curpos = getcurpos()
     " if the function is invoked from visual mode, it will copy the visual selection,
     " because `a:seq` begins with the key `y`;
@@ -613,7 +613,7 @@ fu! search#wrap_star(seq) abort "{{{1
     \            .."\<plug>(ms_custom)"
 endfu
 
-fu! search#restore_cursor_position() abort
+fu search#restore_cursor_position() abort
     if exists('s:curpos')
         call setpos('.', s:curpos)
         unlet! s:curpos
@@ -624,6 +624,6 @@ endfu
 
 " `s:blink` must be initialized AFTER defining the functions
 " `s:tick()` and `s:delete()`.
-let s:blink = { 'ticks': 4, 'delay': 50 }
+let s:blink = {'ticks': 4, 'delay': 50}
 let s:blink.tick   = function('s:tick')
 let s:blink.delete = function('s:delete')
