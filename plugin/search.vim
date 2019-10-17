@@ -136,11 +136,11 @@ augroup END
 " For anything else, remapping should be forbidden.
 " So, we install non-recursive mappings for various keys we may return in our wrappers.
 
-cno  <plug>(ms_cr)      <cr>
-cno  <plug>(ms_up)      <up>
-nno  <plug>(ms_slash)   /
-nno  <plug>(ms_n)       n
-nno  <plug>(ms_N)       N
+cno <plug>(ms_cr)    <cr>
+cno <plug>(ms_up)    <up>
+nno <plug>(ms_slash) /
+nno <plug>(ms_n)     n
+nno <plug>(ms_N)     N
 " Why don't you simply use `C-o` in the rhs?{{{
 "
 " It worked in the past, but not anymore.
@@ -173,21 +173,21 @@ nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 augroup ms_cmdwin
   au!
   au CmdWinEnter * if getcmdwintype() =~ '[/?]'
-               \ |     nmap  <buffer><nowait>  <cr>  <cr><plug>(ms_index)
+               \ |     nmap <buffer><nowait> <cr> <cr><plug>(ms_index)
                \ | endif
 augroup END
 
 " I don't think `<silent>` is needed here, but we use it to stay consistent,
 " and who knows, it may be useful to sometimes avoid a brief message
-nmap  <expr><silent><unique>  gd  search#wrap_gd(1)
-nmap  <expr><silent><unique>  gD  search#wrap_gd(0)
+nmap <expr><silent><unique> gd search#wrap_gd(1)
+nmap <expr><silent><unique> gD search#wrap_gd(0)
 
 " `<silent>` is important: it prevents `n` and `N` to display their own message
 "
 " without `<silent>`, when our message (`pattern [12/34]`) is displayed,
 " it erases the previous one, and makes look like the command-line is flickering
-nmap  <expr><silent><unique>  n  search#wrap_n(1)
-nmap  <expr><silent><unique>  N  search#wrap_n(0)
+nmap <expr><silent><unique> n search#wrap_n(1)
+nmap <expr><silent><unique> N search#wrap_n(0)
 
 " Star &friends {{{2
 
@@ -198,18 +198,18 @@ nmap  <expr><silent><unique>  N  search#wrap_n(0)
 "
 " `<silent>` is useful to avoid `/ pattern cr` to display a brief message on
 " the command-line.
-nmap  <expr><silent><unique>  *  search#wrap_star('*')
-"                                │
-"                                └ * c-o
-"                                  / up cr c-o
-"                                  <plug>(ms_nohls)
-"                                  <plug>(ms_view)  ⇔  <number> c-e / c-y
-"                                  <plug>(ms_blink)
-"                                  <plug>(ms_index)
+nmap <expr><silent><unique> * search#wrap_star('*')
+"                             │
+"                             └ * c-o
+"                               / up cr c-o
+"                               <plug>(ms_nohls)
+"                               <plug>(ms_view)  ⇔  <number> c-e / c-y
+"                               <plug>(ms_blink)
+"                               <plug>(ms_index)
 
-nmap  <expr><silent><unique>  #   search#wrap_star('#')
-nmap  <expr><silent><unique>  g*  search#wrap_star('g*')
-nmap  <expr><silent><unique>  g#  search#wrap_star('g#')
+nmap <expr><silent><unique> #  search#wrap_star('#')
+nmap <expr><silent><unique> g* search#wrap_star('g*')
+nmap <expr><silent><unique> g# search#wrap_star('g#')
 " Why don't we implement `g*` and `g#` mappings?{{{
 " If we search a visual selection, we probably don't want to add the anchors:
 "         \< \>
@@ -241,16 +241,16 @@ nmap  <expr><silent><unique>  g#  search#wrap_star('g#')
 "
 " For now one solution is to press `*` on a word in normal mode.
 "}}}
-"                        ┌ just append keys at the end to add some fancy features
-"                        │                 ┌ copy visual selection
-"                        │                 │┌ search for
-"                        │                 ││┌ insert an expression
-"                        │                 ││├─────┐
-xmap  <expr><unique>  *  search#wrap_star('y/<c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
-"                                                  ├──────────────┘│             │
-"                                                  │               │             └ validate search
-"                                                  │               └ validate expression
-"                                                  └ escape unnamed register
+"                     ┌ just append keys at the end to add some fancy features
+"                     │                 ┌ copy visual selection
+"                     │                 │┌ search for
+"                     │                 ││┌ insert an expression
+"                     │                 ││├─────┐
+xmap <expr><unique> * search#wrap_star('y/<c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
+"                                               ├──────────────┘│             │
+"                                               │               │             └ validate search
+"                                               │               └ validate expression
+"                                               └ escape unnamed register
 
 " Why?{{{
 "
@@ -265,36 +265,36 @@ xmap  <expr><unique>  *  search#wrap_star('y/<c-r>=search#escape(1)<plug>(ms_cr)
 "}}}
 xmap g* *
 
-xmap  <expr><unique>  #  search#wrap_star('y?<c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
-"                                                                │
-"                                                                └ direction of the search
-"                                                                  necessary to know which character among [/?]
-"                                                                  is special, and needs to be escaped
+xmap <expr><unique> # search#wrap_star('y?<c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
+"                                                             │
+"                                                             └ direction of the search
+"                                                               necessary to know which character among [/?]
+"                                                               is special, and needs to be escaped
 
 " Customizations (blink, index, …) {{{2
 
-nno  <expr><silent>  <plug>(ms_restore_unnamed_register)  search#restore_unnamed_register()
+nno <expr><silent> <plug>(ms_restore_unnamed_register)  search#restore_unnamed_register()
 
 " This mapping  is used in `search#wrap_star()` to reenable  our autocmd after a
 " search via star &friends.
-nno  <expr>          <plug>(ms_re-enable_after_slash)  search#after_slash_status('delete')
+nno <expr>         <plug>(ms_re-enable_after_slash)  search#after_slash_status('delete')
 
-nno  <expr><silent>  <plug>(ms_view)   search#view()
+nno <expr><silent> <plug>(ms_view)  search#view()
 
-nno  <expr><silent>  <plug>(ms_blink)  search#blink()
-nno  <expr><silent>  <plug>(ms_nohls)  search#nohls()
-nno        <silent>  <plug>(ms_index)  :<c-u>call search#index()<cr>
+nno <expr><silent> <plug>(ms_blink) search#blink()
+nno <expr><silent> <plug>(ms_nohls) search#nohls()
+nno       <silent> <plug>(ms_index) :<c-u>call search#index()<cr>
 " We  can't use  <expr> to  invoke `search#index()`,  because in  the latter  we
 " perform a substitution, which is forbidden when the text is locked.
 
 " Regroup all customizations behind `<plug>(ms_custom)`
-"                                         ┌ install a one-shot autocmd to disable 'hls' when we move
-"                                         │               ┌ unfold if needed, restore the view after `*` &friends
-"                                         │               │
-nmap  <silent>  <plug>(ms_custom)  <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
-"                                                                         │               │
-"                                            make the current match blink ┘               │
-"                                                         print `[12/34]` kind of message ┘
+"                                      ┌ install a one-shot autocmd to disable 'hls' when we move
+"                                      │               ┌ unfold if needed, restore the view after `*` &friends
+"                                      │               │
+nmap <silent> <plug>(ms_custom) <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
+"                                                                      │               │
+"                                         make the current match blink ┘               │
+"                                                      print `[12/34]` kind of message ┘
 
 
 " Without the next mappings, we face this issue:
@@ -310,11 +310,10 @@ nmap  <silent>  <plug>(ms_custom)  <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blin
 " Why don't we disable `<plug>(ms_nohls)`?
 " Because, the search in `c /pattern cr` has enabled 'hls', so we need
 " to disable it.
-ino  <silent>  <plug>(ms_nohls)  <c-r>=search#nohls_on_leave()<cr>
-ino  <silent>  <plug>(ms_index)  <nop>
-ino  <silent>  <plug>(ms_blink)  <nop>
-ino  <silent>  <plug>(ms_view)   <nop>
-
+ino <silent> <plug>(ms_nohls) <c-r>=search#nohls_on_leave()<cr>
+ino <silent> <plug>(ms_index) <nop>
+ino <silent> <plug>(ms_blink) <nop>
+ino <silent> <plug>(ms_view)  <nop>
 " }}}1
 " Options {{{1
 

@@ -192,7 +192,7 @@ fu s:matches_count() abort
         " check the validity of the cache we have stored in `b:ms_cache`
         " it's only useful if neither the pattern nor the buffer has changed
         let cache_id = [@/, b:changedtick]
-        if get(b:, 'ms_cache_id', []) == cache_id
+        if get(b:, 'ms_cache_id', []) ==# cache_id
             let before = s:matches_above()
             let total  = b:ms_cache[-1]
         else
@@ -221,10 +221,10 @@ fu s:matches_in_line() abort "{{{1
 
     norm! 0
     let matches = 0
-    let flag    = 'c'
+    let flag = 'cW'
     while search(@/, flag, line) && col('.') <= col
         let matches += 1
-        let flag     = ''
+        let flag = 'W'
     endwhile
 
     return matches
