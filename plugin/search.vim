@@ -26,6 +26,43 @@ let g:loaded_search = 1
 "     /pat    [99/>99]  99
 "     /pat    [99/>99]  100
 "     /pat    [99/>99]  101
+"
+" And 1 pitfall: the count is not always be visible.
+"
+" In the case of `*`, you won't see it at all.
+" In the  case of `n`, you  will see it, but  if you enter the  command-line and
+" leave it, you won't see the count anymore when pressing `n`.
+" The issue is due to Vim which does not redraw enough.
+"
+" MWE:
+"
+"     $ vim -Nu <(cat <<'EOF'
+"     set lz
+"     nmap n <plug>(a)<plug>(b)
+"     nno <plug>(a) n
+"     nno <plug>(b) <nop>
+"     EOF
+"     ) ~/.zshrc
+"
+" Search for `the`, then press `n` a few times: the cursor does not seem to move.
+" In reality,  it does  move, but  you don't see  it because  the screen  is not
+" redrawn enough; press `C-l`, and you should see it has correctly moved.
+"
+" Solution: Make  sure that `'lz'` is  temporarily disabled when `n`,  `N`, `*`,
+" `#`, `g*`, `g#`, `gd`, `gD` is pressed.
+"
+" ---
+"
+" If you use the builtin feature, make sure the view is always preserved.
+" Last time I tried, the view was sometimes lost.
+"
+" For example, we have this line in this file:
+"
+"     nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
+"
+" Position your cursor on `ms_prev`, and press `*`.
+" If  the view  changes, it's  because the  next occurrence  is beyond  what the
+" screen can display.
 "}}}
 
 " Links {{{1
