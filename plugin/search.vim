@@ -64,6 +64,22 @@ let g:loaded_search = 1
 " If  the view  changes, it's  because the  next occurrence  is beyond  what the
 " screen can display.
 "}}}
+" FIXME: Vim can sometimes be stuck in an infinite loop.{{{
+"
+" Search for `^#\n\zs`
+"
+"     :new
+"     :1pu='#'
+"     /^#\n\zs
+"
+" The issue comes from `search#index()`.
+" I've profiled the plugin, but there is  command in particular which is call an
+" infinite amount of time, or which takes an infinite amount of time.
+" So, I don't understand exactly what happens.
+"
+" I think we often have this kind of issue.
+" This is an argument in favor of using the builtin count mechanism.
+"}}}
 
 " Links {{{1
 
