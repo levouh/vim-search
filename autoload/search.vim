@@ -220,11 +220,30 @@ fu s:matches_in_line() abort "{{{1
     let [line, col] = [line('.'), col('.')]
 
     norm! 0
+    let g = 0
     let matches = 0
     let flag = 'cW'
-    while search(@/, flag, line) && col('.') <= col
+    let old_col = 0
+    " Why the `old_col` condition?{{{
+    "
+    " To prevent Vim from counting the same match if the cursor didn't move.
+    " Yes, that might happen with some special patterns.
+    "
+    " MWE:
+    "
+    "     :new
+    "     :1pu='#'
+    "     :echo search('^#\n\zs', 'W', 2)
+    "     2~
+    "     :echo search('^#\n\zs', 'W', 2)
+    "     2~
+    "     ...
+    "}}}
+    while search(@/, flag, line) && col('.') <= col && old_col != col('.') && g < 999
         let matches += 1
+        let old_col = col('.')
         let flag = 'W'
+        let g += 1
     endwhile
 
     return matches
