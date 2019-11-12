@@ -27,12 +27,12 @@ let g:loaded_search = 1
 "     /pat    [99/>99]  100
 "     /pat    [99/>99]  101
 "
-" And 1 pitfall: the count is not always be visible.
+" And be aware of 1 pitfall: the count is not always visible.
 "
 " In the case of `*`, you won't see it at all.
 " In the  case of `n`, you  will see it, but  if you enter the  command-line and
 " leave it, you won't see the count anymore when pressing `n`.
-" The issue is due to Vim which does not redraw enough.
+" The issue is due to Vim which does not redraw enough when `'lz'` is set.
 "
 " MWE:
 "
@@ -49,7 +49,7 @@ let g:loaded_search = 1
 " redrawn enough; press `C-l`, and you should see it has correctly moved.
 "
 " Solution: Make  sure that `'lz'` is  temporarily disabled when `n`,  `N`, `*`,
-" `#`, `g*`, `g#`, `gd`, `gD` is pressed.
+" `#`, `g*`, `g#`, `gd`, `gD` is pressed; or `:redraw` right after?
 "
 " ---
 "

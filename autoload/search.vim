@@ -612,7 +612,7 @@ fu search#wrap_star(seq) abort "{{{1
     \                           + execute('let s:after_slash = 1')
     \                     :       ''})
 
-    " Why     `\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)…`?{{{
+    " Why `\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)...`?{{{
     "
     " By default `*` is stupid, it ignores 'smartcase'.
     " To workaround this issue, we type this:
