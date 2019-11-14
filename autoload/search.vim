@@ -261,7 +261,8 @@ fu s:matches_in_range(range) abort "{{{1
     " To prevent the last substitute string (`~`) from being mutated.
     "}}}
     " FIXME: `:s` still mutates the last flags
-    let output = execute('keepj '..a:range..'s//~/gen')
+    " We use `silent!` because of: https://github.com/neovim/neovim/issues/11381
+    let output = execute('keepj '..a:range..'s//~/gen', 'silent!')
     call setpos("'[", marks_save[0])
     call setpos("']", marks_save[1])
     return str2nr(matchstr(output, '\d\+'))
