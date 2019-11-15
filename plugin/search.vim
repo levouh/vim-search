@@ -12,9 +12,6 @@ let g:loaded_search = 1
 "     $ vim -Nu NONE +'set shm-=S' ~/.zshrc
 "     /the
 "
-" Wait until this patch is ported to Nvim, then maybe you should remove all your
-" code implementing this feature.
-"
 " However, be aware of 2 limitations.
 " You can't position the indicator on the command-line (it's at the far right).
 " You can't get the index of a match beyond 99:
@@ -83,6 +80,81 @@ let g:loaded_search = 1
 " https://github.com/google/vim-searchindex/blob/master/plugin/searchindex.vim
 
 " Autocmds {{{1
+
+" FIXME: The matches are not highlighted when `'cole'` is 0.{{{
+"
+" It seems to be due to `<plug>(ms_index)`.
+" It doesn't matter what it's mapped to:
+"
+"     nno <plug>(ms_index) :"<cr>
+"
+" Even if it doesn't run anything, the issue persists.
+" By default this affects – probably among others – a buffer with no filetype or
+" with the `text` filetype.
+"
+" ---
+"
+" The issue can also be fixed by making sure at least one autocmd listens to `CursorMoved`:
+"
+"     au CursorMoved * "
+"}}}
+augroup fix_no_highlight
+    au!
+    au BufReadPost * setl cole=3
+augroup END
+
+augroup fix_E20
+    au!
+    " https://github.com/vim/vim/issues/3837
+    " Purpose:{{{
+    " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.
+    " We enter the command-line, and recall an old command which begins with the
+    " visual range "'<,'>".
+    " Because we've set the `'incsearch'` option, it will raise this error:
+    "
+    "     E20: Mark not set
+    "
+    " It's distracting.
+    "}}}
+    au CmdlineEnter : if ! line("'<")
+        \ |     call setpos("'<", [0,line('.'),col('.'),0])
+        \ |     call setpos("'>", [0,line('.'),col('.'),0])
+        \ | endif
+
+    " The previous issue can be triggered by other marks.{{{
+    "
+    "     $ vim -Nu NONE +'set is'
+    "     :'ss/p
+    "
+    " Every time you add a character, `E20` is raised:
+    "
+    "     :'ss/pa
+    "     " E20
+    "     :'ss/pat
+    "     " E20
+    "     ...
+    "
+    " Worse: If you press Escape to quit, the command is saved in the history.
+    " So now, if you try to get back to any command which was saved earlier, you
+    " will have  to visit this  buggy command which  will raise `E20`  again (at
+    " least if you just press `Up` without writing any prefix).
+    "
+    " The  next  function   call  should  fix  this   by  temporarily  resetting
+    " `'incsearch'`, and removing the buggy command from the history.
+    "}}}
+    au CmdlineChanged,CmdlineLeave : call s:fix_e20()
+augroup END
+
+fu s:fix_e20() abort
+    if v:errmsg is# 'E20: Mark not set' && !exists('s:incsearch_save')
+        let v:errmsg = ''
+        let s:incsearch_save = &incsearch
+        set nois
+        au CmdlineLeave : ++once let &is = s:incsearch_save
+        \ | unlet! s:incsearch_save
+        \ | call histdel(':', histget(getcmdline()))
+    endif
+endfu
 
 augroup my_hls_after_slash
     au!
@@ -363,57 +435,4 @@ set smartcase
 
 " Incremental search
 set incsearch
-
-augroup fix_E20
-    au!
-    " https://github.com/vim/vim/issues/3837
-    " Purpose:{{{
-    " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.
-    " We enter the command-line, and recall an old command which begins with the
-    " visual range "'<,'>".
-    " Because we've set the `'incsearch'` option, it will raise this error:
-    "
-    "     E20: Mark not set
-    "
-    " It's distracting.
-    "}}}
-    au CmdlineEnter : if ! line("'<")
-        \ |     call setpos("'<", [0,line('.'),col('.'),0])
-        \ |     call setpos("'>", [0,line('.'),col('.'),0])
-        \ | endif
-
-    " The previous issue can be triggered by other marks.{{{
-    "
-    "     $ vim -Nu NONE +'set is'
-    "     :'ss/p
-    "
-    " Every time you add a character, `E20` is raised:
-    "
-    "     :'ss/pa
-    "     " E20
-    "     :'ss/pat
-    "     " E20
-    "     ...
-    "
-    " Worse: If you press Escape to quit, the command is saved in the history.
-    " So now, if you try to get back to any command which was saved earlier, you
-    " will have  to visit this  buggy command which  will raise `E20`  again (at
-    " least if you just press `Up` without writing any prefix).
-    "
-    " The  next  function   call  should  fix  this   by  temporarily  resetting
-    " `'incsearch'`, and removing the buggy command from the history.
-    "}}}
-    au CmdlineChanged,CmdlineLeave : call s:fix_e20()
-augroup END
-
-fu s:fix_e20() abort
-    if v:errmsg is# 'E20: Mark not set' && !exists('s:incsearch_save')
-        let v:errmsg = ''
-        let s:incsearch_save = &incsearch
-        set nois
-        au CmdlineLeave : ++once let &is = s:incsearch_save
-        \ | unlet! s:incsearch_save
-        \ | call histdel(':', histget(getcmdline()))
-    endif
-endfu
 
