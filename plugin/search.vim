@@ -81,28 +81,6 @@ let g:loaded_search = 1
 
 " Autocmds {{{1
 
-" FIXME: The matches are not highlighted when `'cole'` is 0.{{{
-"
-" It seems to be due to `<plug>(ms_index)`.
-" It doesn't matter what it's mapped to:
-"
-"     nno <plug>(ms_index) :"<cr>
-"
-" Even if it doesn't run anything, the issue persists.
-" By default this affects – probably among others – a buffer with no filetype or
-" with the `text` filetype.
-"
-" ---
-"
-" The issue can also be fixed by making sure at least one autocmd listens to `CursorMoved`:
-"
-"     au CursorMoved * "
-"}}}
-augroup fix_no_highlight
-    au!
-    au BufReadPost * setl cole=3
-augroup END
-
 augroup fix_E20
     au!
     " https://github.com/vim/vim/issues/3837
