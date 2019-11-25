@@ -79,132 +79,6 @@ let g:loaded_search = 1
 " Source:
 " https://github.com/google/vim-searchindex/blob/master/plugin/searchindex.vim
 
-" Autocmds {{{1
-
-augroup fix_E20
-    au!
-    " https://github.com/vim/vim/issues/3837
-    " Purpose:{{{
-    " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.
-    " We enter the command-line, and recall an old command which begins with the
-    " visual range "'<,'>".
-    " Because we've set the `'incsearch'` option, it will raise this error:
-    "
-    "     E20: Mark not set
-    "
-    " It's distracting.
-    "}}}
-    au CmdlineEnter : if ! line("'<")
-        \ |     call setpos("'<", [0,line('.'),col('.'),0])
-        \ |     call setpos("'>", [0,line('.'),col('.'),0])
-        \ | endif
-
-    " The previous issue can be triggered by other marks.{{{
-    "
-    "     $ vim -Nu NONE +'set is'
-    "     :'ss/p
-    "
-    " Every time you add a character, `E20` is raised:
-    "
-    "     :'ss/pa
-    "     " E20
-    "     :'ss/pat
-    "     " E20
-    "     ...
-    "
-    " Worse: If you press Escape to quit, the command is saved in the history.
-    " So now, if you try to get back to any command which was saved earlier, you
-    " will have  to visit this  buggy command which  will raise `E20`  again (at
-    " least if you just press `Up` without writing any prefix).
-    "
-    " The  next  function   call  should  fix  this   by  temporarily  resetting
-    " `'incsearch'`, and removing the buggy command from the history.
-    "}}}
-    au CmdlineChanged,CmdlineLeave : call s:fix_e20()
-augroup END
-
-fu s:fix_e20() abort
-    if v:errmsg is# 'E20: Mark not set' && !exists('s:incsearch_save')
-        let v:errmsg = ''
-        let s:incsearch_save = &incsearch
-        set nois
-        au CmdlineLeave : ++once let &is = s:incsearch_save
-        \ | unlet! s:incsearch_save
-        \ | call histdel(':', histget(getcmdline()))
-    endif
-endfu
-
-augroup my_hls_after_slash
-    au!
-
-    " If 'hls'  and 'is' are  set, then ALL  matches are highlighted  when we're
-    " writing a regex.  Not just the next match. See `:h 'is`.
-    " So, we make sure 'hls' is set when we enter a search command-line.
-    au CmdlineEnter /,\? call search#toggle_hls('save')
-    "               ├──┘
-    "               └ we could also write this:     [/\?]
-    "                 but it doesn't work on Windows:
-    "                 https://github.com/vim/vim/pull/2198#issuecomment-341131934
-    "
-    "                    Also, why escape the question mark? {{{
-    "                    Because, in the pattern of an autocmd, it has a special meaning:
-    "
-    "                            any character (:h file-pattern)
-    "
-    "                    We want the literal meaning, to only match a backward search command-line.
-    "                    Not all the others (:h cmdwin-char).
-    "
-    "                    Inside a collection, it seems `?` doesn't work (no meaning).
-    "                    To make some tests, use this snippet:
-    "
-    "                            augroup test_pattern
-    "                                au!
-    "                                "         ✔
-    "                                               ┌ it probably works because the pattern
-    "                                               │ is supposed to be a single character,
-    "                                               │ so Vim interprets `?` literally, when it's alone
-    "                                               │
-    "                                au CmdWinEnter ?     nno <buffer> cd :echo 'hello'<cr>
-    "                                au CmdWinEnter \?    nno <buffer> cd :echo 'hello'<cr>
-    "                                au CmdWinEnter /,\?  nno <buffer> cd :echo 'hello'<cr>
-    "                                au CmdWinEnter [/\?] nno <buffer> cd :echo 'hello'<cr>
-
-    "                                "         ✘ (match any command-line)
-    "                                au CmdWinEnter /,?   nno <buffer> cd :echo 'hello'<cr>
-    "                                "         ✘ (only / is affected)
-    "                                au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
-    "                            augroup END
-"}}}
-
-    " Restore the state of 'hls', then invoke `after_slash()`.
-    " And if the search has just failed, invoke `nohls()` to disable 'hls'.
-    au CmdlineLeave /,\? call search#toggle_hls('restore')
-                     \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
-                     \ |     call search#after_slash()
-                     \ |     call timer_start(0, {_ -> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
-                     \ | endif
-
-    " Why `search#after_slash_status()`?{{{
-    "
-    " To disable this part of the autocmd when we do `/ up cr c-o`.
-    "}}}
-    " Why `v:errmsg...` ?{{{
-    "
-    " Open 2 windows with 2 buffers A and B.
-    " In A, search for a pattern which has a match in B but not in A.
-    " Move the cursor: the highlighting should be disabled in B, but it's not.
-    " This is because Vim stops processing a mapping as soon as an error occurs:
-    "
-    " https://github.com/junegunn/vim-slash/issues/5
-    " `:h map-error`
-"}}}
-    " Why the timer?{{{
-    "
-    " Because we haven't performed the search yet.
-    " CmdlineLeave is fired just before.
-    "}}}
-augroup END
-
 " Mappings {{{1
 " Disable unwanted recursivity {{{2
 
@@ -413,4 +287,133 @@ set smartcase
 
 " Incremental search
 set incsearch
+
+" Autocmds {{{1
+
+augroup my_hls_after_slash
+    au!
+
+    " If 'hls'  and 'is' are  set, then ALL  matches are highlighted  when we're
+    " writing a regex.  Not just the next match. See `:h 'is`.
+    " So, we make sure 'hls' is set when we enter a search command-line.
+    au CmdlineEnter /,\? call search#toggle_hls('save')
+    "               ├──┘
+    "               └ we could also write this:     [/\?]
+    "                 but it doesn't work on Windows:
+    "                 https://github.com/vim/vim/pull/2198#issuecomment-341131934
+    "
+    "                    Also, why escape the question mark? {{{
+    "                    Because, in the pattern of an autocmd, it has a special meaning:
+    "
+    "                            any character (:h file-pattern)
+    "
+    "                    We want the literal meaning, to only match a backward search command-line.
+    "                    Not all the others (:h cmdwin-char).
+    "
+    "                    Inside a collection, it seems `?` doesn't work (no meaning).
+    "                    To make some tests, use this snippet:
+    "
+    "                            augroup test_pattern
+    "                                au!
+    "                                "         ✔
+    "                                               ┌ it probably works because the pattern
+    "                                               │ is supposed to be a single character,
+    "                                               │ so Vim interprets `?` literally, when it's alone
+    "                                               │
+    "                                au CmdWinEnter ?     nno <buffer> cd :echo 'hello'<cr>
+    "                                au CmdWinEnter \?    nno <buffer> cd :echo 'hello'<cr>
+    "                                au CmdWinEnter /,\?  nno <buffer> cd :echo 'hello'<cr>
+    "                                au CmdWinEnter [/\?] nno <buffer> cd :echo 'hello'<cr>
+
+    "                                "         ✘ (match any command-line)
+    "                                au CmdWinEnter /,?   nno <buffer> cd :echo 'hello'<cr>
+    "                                "         ✘ (only / is affected)
+    "                                au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
+    "                            augroup END
+"}}}
+
+    " Restore the state of 'hls', then invoke `after_slash()`.
+    " And if the search has just failed, invoke `nohls()` to disable 'hls'.
+    au CmdlineLeave /,\? call search#toggle_hls('restore')
+                     \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
+                     \ |     call search#after_slash()
+                     \ |     call timer_start(0, {_ -> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
+                     \ | endif
+
+    " Why `search#after_slash_status()`?{{{
+    "
+    " To disable this part of the autocmd when we do `/ up cr c-o`.
+    "}}}
+    " Why `v:errmsg...` ?{{{
+    "
+    " Open 2 windows with 2 buffers A and B.
+    " In A, search for a pattern which has a match in B but not in A.
+    " Move the cursor: the highlighting should be disabled in B, but it's not.
+    " This is because Vim stops processing a mapping as soon as an error occurs:
+    "
+    " https://github.com/junegunn/vim-slash/issues/5
+    " `:h map-error`
+"}}}
+    " Why the timer?{{{
+    "
+    " Because we haven't performed the search yet.
+    " CmdlineLeave is fired just before.
+    "}}}
+augroup END
+
+if !has('nvim') | finish | endif
+
+" Fixed by: https://github.com/vim/vim/releases/tag/v8.1.2338
+augroup fix_E20
+    au!
+    " https://github.com/vim/vim/issues/3837
+    " Purpose:{{{
+    " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.
+    " We enter the command-line, and recall an old command which begins with the
+    " visual range "'<,'>".
+    " Because we've set the `'incsearch'` option, it will raise this error:
+    "
+    "     E20: Mark not set
+    "
+    " It's distracting.
+    "}}}
+    au CmdlineEnter : if ! line("'<")
+        \ |     call setpos("'<", [0,line('.'),col('.'),0])
+        \ |     call setpos("'>", [0,line('.'),col('.'),0])
+        \ | endif
+
+    " The previous issue can be triggered by other marks.{{{
+    "
+    "     $ vim -Nu NONE +'set is'
+    "     :'ss/p
+    "
+    " Every time you add a character, `E20` is raised:
+    "
+    "     :'ss/pa
+    "     " E20
+    "     :'ss/pat
+    "     " E20
+    "     ...
+    "
+    " Worse: If you press Escape to quit, the command is saved in the history.
+    " So now, if you try to get back to any command which was saved earlier, you
+    " will have  to visit this  buggy command which  will raise `E20`  again (at
+    " least if you just press `Up` without writing any prefix).
+    "
+    " The  next  function   call  should  fix  this   by  temporarily  resetting
+    " `'incsearch'`, and removing the buggy command from the history.
+    "}}}
+    au CmdlineChanged,CmdlineLeave : call s:fix_e20()
+augroup END
+
+fu s:fix_e20() abort
+    if v:errmsg is# 'E20: Mark not set' && !exists('s:incsearch_save')
+        let v:errmsg = ''
+        let s:incsearch_save = &incsearch
+        set nois
+        au CmdlineLeave : ++once let &is = s:incsearch_save
+        \ | unlet! s:incsearch_save
+        \ | call histdel(':', histget(getcmdline()))
+    endif
+endfu
 
