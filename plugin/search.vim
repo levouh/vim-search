@@ -61,6 +61,11 @@ let g:loaded_search = 1
 " If  the view  changes, it's  because the  next occurrence  is beyond  what the
 " screen can display.
 "}}}
+" TODO: We don't have any mapping in visual mode for `n` and `N`.{{{
+"
+" So, we don't have any count when pressing `n` while in visual mode.
+" Either add a mapping, or remove `S` from `'shm'`.
+"}}}
 
 " Links {{{1
 
