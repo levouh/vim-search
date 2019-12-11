@@ -335,7 +335,7 @@ augroup my_hls_after_slash
     "                                "         ✘ (only / is affected)
     "                                au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
     "                            augroup END
-"}}}
+    "}}}
 
     " Restore the state of 'hls', then invoke `after_slash()`.
     " And if the search has just failed, invoke `nohls()` to disable 'hls'.
@@ -358,7 +358,7 @@ augroup my_hls_after_slash
     "
     " https://github.com/junegunn/vim-slash/issues/5
     " `:h map-error`
-"}}}
+    "}}}
     " Why the timer?{{{
     "
     " Because we haven't performed the search yet.

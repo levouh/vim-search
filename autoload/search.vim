@@ -12,7 +12,7 @@ fu search#after_slash() abort "{{{1
     "    - command
     "    - error
     "    - prompt
-"}}}
+    "}}}
     let s:lz_save = &lz
     set nolazyredraw
     au CmdlineLeave * ++once sil! let &lz = s:lz_save
@@ -383,7 +383,7 @@ fu s:tick(_) abort dict "{{{1
     " a hl immediately. Otherwise, re-install one.
     "
     " This explains the `if !self.delete()` part of the next condition.
-"}}}
+    "}}}
 
     "  (re-)install the hl if:
     "
@@ -626,7 +626,7 @@ fu search#wrap_star(seq) abort "{{{1
     " But we let the function do it again anyway, because it doesn't cause any issue.
     " If it causes an issue, we should test the current mode, and add the
     " keys on the last 2 lines only from normal mode.
-"}}}
+    "}}}
     return a:seq..(index(['v', 'V', "\<c-v>"], mode()) == -1
     \                   ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
     \            .."\<plug>(ms_re-enable_after_slash)"
