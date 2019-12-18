@@ -5,19 +5,6 @@ let g:autoloaded_search = 1
 
 fu search#after_slash() abort "{{{1
     call s:set_hls()
-
-    " If we set 'lazyredraw', when we search a pattern absent from the buffer,{{{
-    " the search command will be displayed, which gives:
-    "
-    "    - command
-    "    - error
-    "    - prompt
-    "}}}
-    let s:lz_save = &lz
-    set nolazyredraw
-    au CmdlineLeave * ++once sil! let &lz = s:lz_save
-        \ | unlet! s:lz_save
-
     call feedkeys("\<plug>(ms_custom)", 'i')
 endfu
 
@@ -269,21 +256,9 @@ fu s:matches_in_range(range) abort "{{{1
 endfu
 
 fu search#nohls() abort "{{{1
-    " Why do you use an augroup in addition to `++once`?{{{
-    "
-    " Because we need a way to remove this one-shot autocmd from `s:set_hls()`.
-    "
-    " If we don't put it in the augroup `my_search`, then we can't run `au! my_search`
-    " elsewhere.
-    "}}}
     augroup my_search
         au!
-        unlet! s:did_shoot
-        au CursorMoved,CursorMovedI * ++once
-            \ if !get(s:, 'did_shoot', 0)
-            \ |     let s:did_shoot = 1
-            \ |     set nohls
-            \ | endif
+        au CursorMoved,CursorMovedI * exe 'au! my_search' | aug! my_search | set nohls
     augroup END
     return ''
 endfu
@@ -298,7 +273,7 @@ endfu
 fu search#nohls_on_leave()
     augroup my_search
         au!
-        au InsertLeave * ++once sil! set nohls
+        au InsertLeave * ++once set nohls
     augroup END
     " return an empty string, so that the function doesn't insert anything
     return ''
@@ -324,7 +299,7 @@ fu s:set_hls() abort "{{{1
     " hl, if the cursor has just moved). So, no blinking either.
     sil! au! my_search
     sil! aug! my_search
-    set hlsearch
+    set hls
 endfu
 
 fu s:tick(_) abort dict "{{{1
@@ -369,8 +344,8 @@ fu s:tick(_) abort dict "{{{1
     " We need to stop the blinking if the cursor moves.
     " How to detect that the cursor is moving?
     " We already have an autocmd listening to the `CursorMoved` event.
-    " When our autocmd is fired, 'hlsearch' is disabled.
-    " So, if 'hlsearch' is disabled, we should stop the blinking.
+    " When our autocmd is fired, `'hls'` is disabled.
+    " So, if `'hls'` is disabled, we should stop the blinking.
     "
     " This explains the `if &hls` part of the next condition.
     "
@@ -390,9 +365,9 @@ fu s:tick(_) abort dict "{{{1
     "  ┌ try to delete the hl, and check we haven't been able to do so
     "  │ if we have, we don't want to re-install a hl immediately (only next tick)
     "  │                 ┌ the cursor hasn't moved
-    "  │                 │            ┌ the blinking is still active
-    "  │                 │            │
-    if !self.delete() && &hlsearch && active
+    "  │                 │       ┌ the blinking is still active
+    "  │                 │       │
+    if !self.delete() && &hls && active
         "                                1 list describing 1 “position”;              ┐
         "                               `matchaddpos()` can accept up to 8 positions; │
         "                                each position can match:                     │

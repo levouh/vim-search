@@ -298,9 +298,9 @@ set incsearch
 augroup my_hls_after_slash
     au!
 
-    " If 'hls'  and 'is' are  set, then ALL  matches are highlighted  when we're
+    " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
     " writing a regex.  Not just the next match. See `:h 'is`.
-    " So, we make sure 'hls' is set when we enter a search command-line.
+    " So, we make sure `'hls'` is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
     "               ├──┘
     "               └ we could also write this:     [/\?]
@@ -337,8 +337,8 @@ augroup my_hls_after_slash
     "                            augroup END
     "}}}
 
-    " Restore the state of 'hls', then invoke `after_slash()`.
-    " And if the search has just failed, invoke `nohls()` to disable 'hls'.
+    " Restore the state of `'hls'`, then invoke `after_slash()`.
+    " And if the search has just failed, invoke `nohls()` to disable `'hls'`.
     au CmdlineLeave /,\? call search#toggle_hls('restore')
                      \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
                      \ |     call search#after_slash()
@@ -417,8 +417,8 @@ fu s:fix_e20() abort
         let s:incsearch_save = &incsearch
         set nois
         au CmdlineLeave : ++once let &is = s:incsearch_save
-        \ | unlet! s:incsearch_save
-        \ | call histdel(':', histget(getcmdline()))
+            \ | unlet! s:incsearch_save
+            \ | call histdel(':', histget(getcmdline()))
     endif
 endfu
 
