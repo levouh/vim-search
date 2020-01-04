@@ -207,7 +207,6 @@ fu s:matches_in_line() abort "{{{1
     let [line, col] = [line('.'), col('.')]
 
     norm! 0
-    let g = 0
     let matches = 0
     let flag = 'cW'
     let old_col = 0
@@ -226,11 +225,10 @@ fu s:matches_in_line() abort "{{{1
     "     2~
     "     ...
     "}}}
-    while search(@/, flag, line) && col('.') <= col && col('.') != old_col && g < 999
+    let g = 0 | while search(@/, flag, line) && col('.') <= col && col('.') != old_col && g < 999 | let g += 1
         let matches += 1
         let old_col = col('.')
         let flag = 'W'
-        let g += 1
     endwhile
 
     return matches

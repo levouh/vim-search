@@ -382,7 +382,7 @@ augroup fix_E20
     "
     " It's distracting.
     "}}}
-    au CmdlineEnter : if ! line("'<")
+    au CmdlineEnter : if !line("'<")
         \ |     call setpos("'<", [0,line('.'),col('.'),0])
         \ |     call setpos("'>", [0,line('.'),col('.'),0])
         \ | endif
