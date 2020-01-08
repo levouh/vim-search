@@ -250,7 +250,7 @@ nno <expr><silent> <plug>(ms_view)  search#view()
 nno <expr><silent> <plug>(ms_blink) search#blink()
 nno <expr><silent> <plug>(ms_nohls) search#nohls()
 nno       <silent> <plug>(ms_index) :<c-u>call search#index()<cr>
-" We  can't use  <expr> to  invoke `search#index()`,  because in  the latter  we
+" We can't  use `<expr>` to  invoke `search#index()`,  because in the  latter we
 " perform a substitution, which is forbidden when the text is locked.
 
 " Regroup all customizations behind `<plug>(ms_custom)`
@@ -262,20 +262,25 @@ nmap <silent> <plug>(ms_custom) <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<
 "                                         make the current match blink ┘               │
 "                                                      print `[12/34]` kind of message ┘
 
+" We need this mapping for when we leave the search command-line from visual mode.
+xno <expr><silent> <plug>(ms_custom) search#nohls()
 
-" Without the next mappings, we face this issue:
-"     https://github.com/junegunn/vim-slash/issues/4
+" Without the next mappings, we face this issue:{{{
+"
+" https://github.com/junegunn/vim-slash/issues/4
 "
 "     c /pattern cr
 "
-" … inserts a succession of literal <plug>(…) strings in the buffer, in front
+" ... inserts a succession of literal  <plug>(…) strings in the buffer, in front
 " of `pattern`.
-" The problem comes from the wrong assumption that after a `/` search, we are
-" in normal mode. We could also be in insert mode.
-
-" Why don't we disable `<plug>(ms_nohls)`?
-" Because, the search in `c /pattern cr` has enabled 'hls', so we need
-" to disable it.
+" The problem comes from the wrong assumption that after a `/` search, we are in
+" normal mode. We could also be in insert mode.
+"}}}
+" Why don't you disable `<plug>(ms_nohls)`?{{{
+"
+" Because,  the search  in `c  /pattern cr`  has enabled  'hls', so  we need  to
+" disable it.
+"}}}
 ino <silent> <plug>(ms_nohls) <c-r>=search#nohls_on_leave()<cr>
 ino <silent> <plug>(ms_index) <nop>
 ino <silent> <plug>(ms_blink) <nop>

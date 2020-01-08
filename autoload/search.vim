@@ -559,7 +559,7 @@ fu search#wrap_star(seq) abort "{{{1
     " if the function is invoked from visual mode, it will copy the visual selection,
     " because `a:seq` begins with the key `y`;
     " in this case, we save the unnamed register to restore it later
-    if index(['v', 'V', "\<c-v>"], mode()) >= 0
+    if mode() =~# "[vV\<c-v>]"
         let s:unnamed_reg_save = ['"', getreg('"'), getregtype('"')]
     endif
 
@@ -600,7 +600,7 @@ fu search#wrap_star(seq) abort "{{{1
     " If it causes an issue, we should test the current mode, and add the
     " keys on the last 2 lines only from normal mode.
     "}}}
-    return a:seq..(index(['v', 'V', "\<c-v>"], mode()) == -1
+    return a:seq..(mode() !~# "[vV\<c-v>]"
     \                   ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
     \            .."\<plug>(ms_re-enable_after_slash)"
     \            .."\<plug>(ms_custom)"
