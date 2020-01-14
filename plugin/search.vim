@@ -288,8 +288,7 @@ ino <silent> <plug>(ms_view)  <nop>
 " }}}1
 " Options {{{1
 
-" ignore the case when searching for a pattern, containing only lowercase
-" characters
+" ignore the case when searching for a pattern containing only lowercase characters
 set ignorecase
 
 " but don't ignore the case if it contains an uppercase character
