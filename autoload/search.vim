@@ -53,10 +53,10 @@ fu search#index() abort "{{{1
     " For more info, see our mapping changing the lightness of the colorscheme.
 
     let msg = '['..current..'/'..total..'] '..@/
-    call timer_start(0, {_ -> execute('echo '..string(msg), '')})
+    call timer_start(0, {-> execute('echo '..string(msg), '')})
     " Do *not* use `printf()`:{{{
     "
-    "     call timer_start(0, {_ -> execute(printf('echo ''[%s/%s] %s''', current, total, @/), '')})
+    "     call timer_start(0, {-> execute(printf('echo ''[%s/%s] %s''', current, total, @/), '')})
     "
     " It would break when the search pattern contains a single quote.
     " We need `string()` to take care of the message *before* passing it to `:echo`.
@@ -508,7 +508,7 @@ fu search#wrap_gd(is_fwd) abort "{{{1
     call s:set_hls()
     " If we press `gd`  on the 1st occurrence of a  keyword, the highlighting is
     " still not disabled.
-    call timer_start(0, {_ -> search#nohls()})
+    call timer_start(0, {-> search#nohls()})
     return (a:is_fwd ? 'gd' : 'gD').."\<plug>(ms_custom)"
 endfu
 
@@ -535,7 +535,7 @@ fu search#wrap_n(is_fwd) abort "{{{1
     " of `n` and `N`.
     let seq = (seq is# 'n' ? "\<plug>(ms_n)" : "\<plug>(ms_N)")
 
-    call timer_start(0, {_ -> v:errmsg[:4] is# 'E486:' ? search#nohls() : '' })
+    call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : '' })
 
     return seq.."\<plug>(ms_custom)"
 
@@ -581,7 +581,7 @@ fu search#wrap_star(seq) abort "{{{1
     "
     " Also, make sure to re-enable the invokation of `after_slash()` after a `/`
     " search.
-    call timer_start(0, {_ -> v:errmsg[:4] =~# 'E\%(348\|349\):'
+    call timer_start(0, {-> v:errmsg[:4] =~# 'E\%(348\|349\):'
     \                     ?       search#nohls()
     \                           + execute('let s:after_slash = 1')
     \                     :       ''})

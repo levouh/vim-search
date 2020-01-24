@@ -346,7 +346,7 @@ augroup my_hls_after_slash
     au CmdlineLeave /,\? call search#toggle_hls('restore')
                      \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
                      \ |     call search#after_slash()
-                     \ |     call timer_start(0, {_ -> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
+                     \ |     call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
                      \ | endif
 
     " Why `search#after_slash_status()`?{{{
