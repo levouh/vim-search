@@ -307,47 +307,48 @@ augroup my_hls_after_slash
     " So, we make sure `'hls'` is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
     "               ├──┘
-    "               └ we could also write this:     [/\?]
+    "               └ we could also write this: [/\?]
     "                 but it doesn't work on Windows:
     "                 https://github.com/vim/vim/pull/2198#issuecomment-341131934
+    " And why do you escape the question mark? {{{
     "
-    "                    Also, why escape the question mark? {{{
-    "                    Because, in the pattern of an autocmd, it has a special meaning:
+    " Because, in the pattern of an autocmd, it has a special meaning:
     "
-    "                            any character (:h file-pattern)
+    "     any character (:h file-pattern)
     "
-    "                    We want the literal meaning, to only match a backward search command-line.
-    "                    Not all the others (:h cmdwin-char).
+    " We want the literal meaning, to only match a backward search command-line.
+    " Not all the others (:h cmdwin-char).
     "
-    "                    Inside a collection, it seems `?` doesn't work (no meaning).
-    "                    To make some tests, use this snippet:
+    " Inside a collection, it seems `?` doesn't work (no meaning).
+    " To make some tests, use this snippet:
     "
-    "                            augroup test_pattern
-    "                                au!
-    "                                "         ✔
-    "                                               ┌ it probably works because the pattern
-    "                                               │ is supposed to be a single character,
-    "                                               │ so Vim interprets `?` literally, when it's alone
-    "                                               │
-    "                                au CmdWinEnter ?     nno <buffer> cd :echo 'hello'<cr>
-    "                                au CmdWinEnter \?    nno <buffer> cd :echo 'hello'<cr>
-    "                                au CmdWinEnter /,\?  nno <buffer> cd :echo 'hello'<cr>
-    "                                au CmdWinEnter [/\?] nno <buffer> cd :echo 'hello'<cr>
-
-    "                                "         ✘ (match any command-line)
-    "                                au CmdWinEnter /,?   nno <buffer> cd :echo 'hello'<cr>
-    "                                "         ✘ (only / is affected)
-    "                                au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
-    "                            augroup END
+    "     augroup test_pattern
+    "         au!
+    "         "         ✔
+    "                        ┌ it probably works because the pattern
+    "                        │ is supposed to be a single character,
+    "                        │ so Vim interprets `?` literally, when it's alone
+    "                        │
+    "         au CmdWinEnter ?     nno <buffer> cd :echo 'hello'<cr>
+    "         au CmdWinEnter \?    nno <buffer> cd :echo 'hello'<cr>
+    "         au CmdWinEnter /,\?  nno <buffer> cd :echo 'hello'<cr>
+    "         au CmdWinEnter [/\?] nno <buffer> cd :echo 'hello'<cr>
+    "
+    "         "         ✘ (match any command-line)
+    "         au CmdWinEnter /,?   nno <buffer> cd :echo 'hello'<cr>
+    "         "         ✘ (only / is affected)
+    "         au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
+    "     augroup END
     "}}}
 
-    " Restore the state of `'hls'`, then invoke `after_slash()`.
-    " And if the search has just failed, invoke `nohls()` to disable `'hls'`.
+    " Restore the state of `'hls'`.
+    " It if a search has been performed, set it again.
+    " If the search fails, disable it.
     au CmdlineLeave /,\? call search#toggle_hls('restore')
-                     \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
-                     \ |     call search#after_slash(0)
-                     \ |     call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
-                     \ | endif
+        \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
+        \ |     call search#set_hls()
+        \ |     call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : feedkeys("\<plug>(ms_custom)", 'i')})
+        \ | endif
 
     " Why `search#after_slash_status()`?{{{
     "
@@ -366,7 +367,27 @@ augroup my_hls_after_slash
     " Why the timer?{{{
     "
     " Because we haven't performed the search yet.
-    " CmdlineLeave is fired just before.
+    " `CmdlineLeave` is fired just before.
+    "}}}
+    " Do *not* move `feedkeys()` outside the timer!{{{
+    "
+    " It could trigger a hit-enter prompt.
+    "
+    " If you move it outside the timer,  it will be run unconditionally; even if
+    " the search fails.
+    " And sometimes, when we would search for some pattern which is not matched,
+    " Vim could display 2 messages.  One for the pattern, and one for E486:
+    "
+    "     /garbage
+    "     E486: Pattern not found: garbage
+    "
+    " This causes a hit-enter prompt, which is annoying/distracting.
+    " The fed keys don't even seem to matter.
+    " It's hard to reproduce; probably a weird Vim bug...
+    "
+    " Anyway, after a failed search, there is no reason to feed `<plug>(ms_custom)`;
+    " there is no cursor to make blink, no index to print...
+    " It should be fed only if the pattern was found.
     "}}}
 augroup END
 

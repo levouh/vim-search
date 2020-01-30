@@ -3,31 +3,6 @@ if exists('g:autoloaded_search')
 endif
 let g:autoloaded_search = 1
 
-fu search#after_slash(...) abort "{{{1
-    call s:set_hls()
-    " The guard tries to avoid a possible hit-enter prompt.{{{
-    "
-    " Sometimes, when we search for some pattern which is not matched, Vim displays 2 messages.
-    "
-    " One for the pattern, and one for E486:
-    "
-    "     /garbage
-    "     E486: Pattern not found: garbage
-    "
-    " This causes a hit-enter prompt, which is annoying/distracting.
-    " I don't know why, but it's due  to this `feedkeys()`, when the function is
-    " invoked from an autocmd listening to `CmdlineLeave`.
-    " The fed keys don't even seem to matter.
-    " It's hard to reproduce; probably a weird Vim bug...
-    "
-    " Anyway, after a failed search, there is no reason to feed `<plug>(ms_custom)`;
-    " there is nothing to highlight, no cursor to make blink, no index to print...
-    "}}}
-    if a:0
-        call feedkeys("\<plug>(ms_custom)", 'i')
-    endif
-endfu
-
 fu search#after_slash_status(...) abort "{{{1
     if a:0
         unlet! s:after_slash
@@ -305,7 +280,7 @@ fu search#restore_unnamed_register() abort "{{{1
     endif
 endfu
 
-fu s:set_hls() abort "{{{1
+fu search#set_hls() abort "{{{1
     " If we don't remove the autocmd, when `n` will be typed, the cursor will
     " move, and 'hls' will be disabled. We want 'hls' to stay enabled even
     " after the `n` motion. Same issue with the motion after a `/` search (not
@@ -460,7 +435,7 @@ fu search#toggle_hls(action) abort "{{{1
     if a:action is# 'save'
         let s:hls_on = &hls
         set hls
-    else
+    elseif a:action is# 'restore'
         if exists('s:hls_on')
             exe 'set '..(s:hls_on ? '' : 'no')..'hls'
             unlet! s:hls_on
@@ -525,7 +500,7 @@ fu search#view() abort "{{{1
 endfu
 
 fu search#wrap_gd(is_fwd) abort "{{{1
-    call s:set_hls()
+    call search#set_hls()
     " If we press `gd`  on the 1st occurrence of a  keyword, the highlighting is
     " still not disabled.
     call timer_start(0, {-> search#nohls()})
@@ -533,7 +508,7 @@ fu search#wrap_gd(is_fwd) abort "{{{1
 endfu
 
 fu search#wrap_n(is_fwd) abort "{{{1
-    call s:set_hls()
+    call search#set_hls()
 
     " We want `n` and `N` to move consistently no matter the direction of the
     " search `/`, or `?`.
@@ -587,9 +562,9 @@ fu search#wrap_star(seq) abort "{{{1
     " the window. The position / index of the latter is 1.
     let s:winline = winline()
 
-    call s:set_hls()
+    call search#set_hls()
 
-    " We have an autocmd which invokes  `after_slash()` when we leave the search
+    " We have an autocmd which invokes  `#set_hls()` when we leave the search
     " command-line.  It needs to be to  temporarily disabled while we type
     " `/ up cr`, otherwise it would badly interfere.
     let s:after_slash = 0
@@ -599,12 +574,11 @@ fu search#wrap_star(seq) abort "{{{1
     " processing the mapping.   Therefore, the highlighting is  not cleared when
     " we move the cursor. Make sure it is.
     "
-    " Also, make sure to re-enable the invokation of `after_slash()` after a `/`
-    " search.
-    call timer_start(0, {-> v:errmsg[:4] =~# 'E\%(348\|349\):'
-    \                     ?       search#nohls()
-    \                           + execute('let s:after_slash = 1')
-    \                     :       ''})
+    " Also, make sure to re-enable the invocation of `#set_hls()` after a `/` search.
+    call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:'
+        \ ?   search#nohls()
+        \   + execute('let s:after_slash = 1')
+        \ :   ''})
 
     " Why `\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)...`?{{{
     "
@@ -621,9 +595,9 @@ fu search#wrap_star(seq) abort "{{{1
     " keys on the last 2 lines only from normal mode.
     "}}}
     return a:seq..(mode() !~# "[vV\<c-v>]"
-    \                   ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
-    \            .."\<plug>(ms_re-enable_after_slash)"
-    \            .."\<plug>(ms_custom)"
+        \ ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
+        \     .."\<plug>(ms_re-enable_after_slash)"
+        \     .."\<plug>(ms_custom)"
 endfu
 
 fu search#restore_cursor_position() abort
