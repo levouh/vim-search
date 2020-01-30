@@ -370,6 +370,20 @@ augroup my_hls_after_slash
     "}}}
 augroup END
 
+augroup hoist_noic
+    au!
+    " Why an indicator for the 'ignorecase' option?{{{
+    "
+    " Recently, it  was temporarily  reset by  `$VIMRUNTIME/indent/vim.vim`, but
+    " was not properly set again.
+    " We should be  immediately informed when that happens,  because this option
+    " has many effects;  e.g. when reset, we can't tab  complete custom commands
+    " written in lowercase.
+    "}}}
+    au User MyFlags call statusline#hoist('global', '%2*%{!&ic? "[noic]" : ""}', 27)
+    au OptionSet ignorecase call timer_start(0, {-> execute('redrawt')})
+augroup END
+
 if !has('nvim') | finish | endif
 
 " Fixed by: https://github.com/vim/vim/releases/tag/v8.1.2338

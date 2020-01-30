@@ -23,7 +23,7 @@ fu search#after_slash(...) abort "{{{1
     " Anyway, after a failed search, there is no reason to feed `<plug>(ms_custom)`;
     " there is nothing to highlight, no cursor to make blink, no index to print...
     "}}}
-    if !a:0
+    if a:0
         call feedkeys("\<plug>(ms_custom)", 'i')
     endif
 endfu
