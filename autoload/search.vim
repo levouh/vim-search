@@ -3,9 +3,29 @@ if exists('g:autoloaded_search')
 endif
 let g:autoloaded_search = 1
 
-fu search#after_slash() abort "{{{1
+fu search#after_slash(...) abort "{{{1
     call s:set_hls()
-    call feedkeys("\<plug>(ms_custom)", 'i')
+    " The guard tries to avoid a possible hit-enter prompt.{{{
+    "
+    " Sometimes, when we search for some pattern which is not matched, Vim displays 2 messages.
+    "
+    " One for the pattern, and one for E486:
+    "
+    "     /garbage
+    "     E486: Pattern not found: garbage
+    "
+    " This causes a hit-enter prompt, which is annoying/distracting.
+    " I don't know why, but it's due  to this `feedkeys()`, when the function is
+    " invoked from an autocmd listening to `CmdlineLeave`.
+    " The fed keys don't even seem to matter.
+    " It's hard to reproduce; probably a weird Vim bug...
+    "
+    " Anyway, after a failed search, there is no reason to feed `<plug>(ms_custom)`;
+    " there is nothing to highlight, no cursor to make blink, no index to print...
+    "}}}
+    if !a:0
+        call feedkeys("\<plug>(ms_custom)", 'i')
+    endif
 endfu
 
 fu search#after_slash_status(...) abort "{{{1
@@ -570,8 +590,8 @@ fu search#wrap_star(seq) abort "{{{1
     call s:set_hls()
 
     " We have an autocmd which invokes  `after_slash()` when we leave the search
-    " command-line.  It needs to be to  temporarily disabled while we type `/ up
-    " cr`, otherwise it would badly interfere.
+    " command-line.  It needs to be to  temporarily disabled while we type
+    " `/ up cr`, otherwise it would badly interfere.
     let s:after_slash = 0
 
     " If we  press `*` on  nothing, it raises E348  or E349, and  Vim highlights

@@ -345,7 +345,7 @@ augroup my_hls_after_slash
     " And if the search has just failed, invoke `nohls()` to disable `'hls'`.
     au CmdlineLeave /,\? call search#toggle_hls('restore')
                      \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
-                     \ |     call search#after_slash()
+                     \ |     call search#after_slash(0)
                      \ |     call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
                      \ | endif
 
