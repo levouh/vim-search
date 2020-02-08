@@ -65,7 +65,7 @@ fu search#index() abort "{{{1
     " an  unquoted string  which  would often  cause  an error  (E121: Undefined
     " variable). The exact same thing happens here:
     "
-    "       exe 'echo string('.msg.')'
+    "     exe 'echo string('.msg.')'
     "
     " Remember:
     " `printf('…%s…%s…')` is really equivalent to a concatenation of strings.
