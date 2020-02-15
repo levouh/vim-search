@@ -269,10 +269,18 @@ fu s:matches_in_range(range) abort "{{{1
     return str2nr(matchstr(output, '\d\+'))
 endfu
 
-fu search#nohls() abort "{{{1
+fu search#nohls(...) abort "{{{1
     augroup my_search
         au!
         au CursorMoved,CursorMovedI * exe 'au! my_search' | aug! my_search | set nohls
+        " Necessary when a search fails (`E486`), and we search for another pattern right afterward.{{{
+        "
+        " Otherwise, if there is no cursor  motion between the two searches, and
+        " the second one succeeds, the cursor does not blink.
+        "}}}
+        if a:0
+            au CmdlineEnter * exe 'au! my_search' | aug! my_search | set nohls
+        endif
     augroup END
     return ''
 endfu
@@ -551,7 +559,7 @@ fu search#wrap_n(is_fwd) abort "{{{1
     " of `n` and `N`.
     let seq = (seq is# 'n' ? "\<plug>(ms_n)" : "\<plug>(ms_N)")
 
-    call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : '' })
+    call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
 
     return seq.."\<plug>(ms_custom)"
 

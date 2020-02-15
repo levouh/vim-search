@@ -349,7 +349,7 @@ augroup my_hls_after_slash
         \ |     call search#set_hls()
         \ |     call timer_start(0, {->
         \           v:errmsg[:4] is# 'E486:'
-        \             ? search#nohls()
+        \             ? search#nohls(1)
         \             : mode() =~# '[nv]' ? feedkeys("\<plug>(ms_custom)", 'i') : ''})
         \ | endif
 
