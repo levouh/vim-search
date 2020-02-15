@@ -39,15 +39,36 @@ endfu
 
 fu search#index() abort "{{{1
     let [current, total] = s:matches_count()
+    let msg = '['..current..'/'..total..'] '..@/
 
-    " We  delay  the `:echo`,  otherwise  it's  automatically  erased in  a  Vim
-    " terminal buffer. Also, we  have come to the conclusion that,  to display a
-    " message  from a  function called  from a  mapping, *reliably*  in Vim  and
-    " Neovim, we must avoid `<expr>`, and we must delay the `:echo`.
+    " We don't want a hit-enter prompt when the message is too long.{{{
+    "
+    " Let's emulate what Vim does by default:
+    "
+    "    - cut the message in 2 halves
+    "    - truncate the end of the 1st half, and the start of the 2nd one
+    "    - join the 2 halves with `...` in the middle
+    "}}}
+    if strchars(msg, 1) > (v:echospace + (&cmdheight-1)*&columns)
+    "                      ├─────────┘   ├─────────────────────┘{{{
+    "                      │             └ space available on previous lines of the command-line
+    "                      └ space available on last line of the command-line
+    "}}}
+        let n = v:echospace - 3
+        "                     │
+        "                     └ for the middle '...'
+        let [n1, n2] = n%2 ? [n/2, n/2] : [n/2-1, n/2]
+        let msg = join(matchlist(msg, '\(.\{'..n1..'}\).*\(.\{'..n2..'}\)')[1:2], '...')
+    endif
+
+    " We delay the `:echo`, otherwise it's automatically erased in a Vim terminal buffer.{{{
+    "
+    " Also, we  have come to  the conclusion that, to  display a message  from a
+    " function called  from a  mapping, *reliably*  in Vim  and Neovim,  we must
+    " avoid `<expr>`, and we must delay the `:echo`.
     "
     " For more info, see our mapping changing the lightness of the colorscheme.
-
-    let msg = '['..current..'/'..total..'] '..@/
+    "}}}
     call timer_start(0, {-> execute('echo '..string(msg), '')})
     " Do *not* use `printf()`:{{{
     "
