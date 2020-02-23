@@ -34,11 +34,16 @@ fu s:delete() abort dict "{{{1
 endfu
 
 fu search#escape(is_fwd) abort "{{{1
-    return '\V'..substitute(escape(@", '\'.(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
+    return '\V'..substitute(escape(@", '\'..(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
 endfu
 
 fu search#index() abort "{{{1
-    let [current, total] = s:matches_count()
+    try
+        let [current, total] = s:matches_count()
+    " in case the pattern is invalid (E54, E55, ...)
+    catch
+        return lg#catch_error()
+    endtry
     let msg = '['..current..'/'..total..'] '..@/
 
     " We don't want a hit-enter prompt when the message is too long.{{{
