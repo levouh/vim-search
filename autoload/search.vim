@@ -564,7 +564,7 @@ fu search#wrap_n(is_fwd) abort "{{{1
     " of `n` and `N`.
     let seq = (seq is# 'n' ? "\<plug>(ms_n)" : "\<plug>(ms_N)")
 
-    call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls() : ''})
+    call timer_start(0, {-> v:errmsg[:4] is# 'E486:' ? search#nohls(1) : ''})
 
     return seq.."\<plug>(ms_custom)"
 
