@@ -42,7 +42,7 @@ fu search#index() abort "{{{1
         let [current, total] = s:matches_count()
     " in case the pattern is invalid (E54, E55, ...)
     catch
-        return lg#catch_error()
+        return lg#catch()
     endtry
     let msg = '['..current..'/'..total..'] '..@/
 
