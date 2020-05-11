@@ -136,8 +136,7 @@ nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 " Without `<silent>`, Vim behaves as expected:
 "     E486: Pattern not found: garbage
 
-augroup ms_cmdwin
-  au!
+augroup ms_cmdwin | au!
   au CmdWinEnter * if getcmdwintype() =~ '[/?]'
                \ |     nmap <buffer><nowait> <cr> <cr><plug>(ms_index)
                \ | endif
@@ -299,8 +298,7 @@ set incsearch
 
 " Autocmds {{{1
 
-augroup my_hls_after_slash
-    au!
+augroup my_hls_after_slash | au!
 
     " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
     " writing a regex.  Not just the next match. See `:h 'is`.
@@ -322,8 +320,7 @@ augroup my_hls_after_slash
     " Inside a collection, it seems `?` doesn't work (no meaning).
     " To make some tests, use this snippet:
     "
-    "     augroup test_pattern
-    "         au!
+    "     augroup test_pattern | au!
     "         "         ✔
     "                        ┌ it probably works because the pattern
     "                        │ is supposed to be a single character,
@@ -397,8 +394,7 @@ augroup my_hls_after_slash
     "}}}
 augroup END
 
-augroup hoist_noic
-    au!
+augroup hoist_noic | au!
     " Why an indicator for the 'ignorecase' option?{{{
     "
     " Recently, it  was temporarily  reset by  `$VIMRUNTIME/indent/vim.vim`, but
@@ -415,8 +411,7 @@ augroup END
 if !has('nvim') | finish | endif
 
 " Fixed by: https://github.com/vim/vim/releases/tag/v8.1.2338
-augroup fix_E20
-    au!
+augroup fix_E20 | au!
     " https://github.com/vim/vim/issues/3837
     " Purpose:{{{
     " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.

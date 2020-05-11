@@ -275,8 +275,7 @@ fu s:matches_in_range(range) abort "{{{1
 endfu
 
 fu search#nohls(...) abort "{{{1
-    augroup my_search
-        au!
+    augroup my_search | au!
         au CursorMoved,CursorMovedI * exe 'au! my_search' | aug! my_search | set nohls
         " Necessary when a search fails (`E486`), and we search for another pattern right afterward.{{{
         "
@@ -298,8 +297,7 @@ endfu
 "
 " `cr` enables 'hls', we need to disable it
 fu search#nohls_on_leave()
-    augroup my_search
-        au!
+    augroup my_search | au!
         au InsertLeave * ++once set nohls
     augroup END
     " return an empty string, so that the function doesn't insert anything
