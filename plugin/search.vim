@@ -3,6 +3,16 @@ if exists('g:loaded_search')
 endif
 let g:loaded_search = 1
 
+" TODO: Prevent the plugin from highlighting matches after a search run from operator-pending/visual mode.{{{
+"
+" You can't do that right now, because  `mode()` returns `v`, `V`, `^V` when the
+" search command-line  has been entered  from visual mode,  and `c` when  it was
+" entered from operator-pending mode.
+"
+" You need to wait for `mode(1)` to be able to return `c/v` and `c/o` (see `:h todo /c\/o`).
+" More generally,  disable anything fancy  when the search command-line  was not
+" entered from normal mode.
+"}}}
 " TODO: Vim's patch 8.1.1270 has added native support for match index after a search:{{{
 "
 " https://github.com/vim/vim/releases/tag/v8.1.1270
