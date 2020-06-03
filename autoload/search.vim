@@ -38,13 +38,43 @@ fu search#escape(is_fwd) abort "{{{1
 endfu
 
 fu search#index() abort "{{{1
+    " Nvim doesn't support `searchcount()`.{{{
+    "
+    " So instead, we rely on removing the `S` flag from `'shm'`.
+    " But Nvim  doesn't redraw when we  press `n` if  `'lz'` is set; we  need to
+    " temporarily reset the latter.
+    "}}}
+    " TODO: When `'lz'` is set, why does Nvim print the index after a `/` search, but not after `n`?
+    " Is it because we're in the middle of a mapping?
+    " But that doesn't prevent Vim from printing the message...
+    "
+    " Update: I think Nvim is just different than Vim.
+    " Make some tests, with and without `<cmd>`/`<expr>`...
+    if has('nvim')
+        set nolz
+        au CursorMoved * ++once set lz
+        return ''
+    endif
+
     try
-        let [current, total] = s:matches_count()
-    " in case the pattern is invalid (E54, E55, ...)
+        let result = searchcount({'maxcount': s:MAXCOUNT, 'timeout': s:TIMEOUT})
+        let [current, total, incomplete] = [result.current, result.total, result.incomplete]
+    " in case the pattern is invalid (E54, E55, E871, ...)
     catch
         return lg#catch()
     endtry
-    let msg = '['..current..'/'..total..'] '..@/
+    let msg = ''
+    if incomplete == 0
+        let msg = '['..current..'/'..total..'] '..@/
+    elseif incomplete == 1 " recomputing took too much time
+        let msg = '[?/?] '..@/
+    elseif incomplete == 2 " too many matches
+        if result.total == (result.maxcount+1) && result.current <= result.maxcount
+            let msg = '['..current..'/>'..(total-1)..'] '..@/
+        else
+            let msg = '[>'..(current-1)..'/>'..(total-1)..'] '..@/
+        endif
+    endif
 
     " We don't want a hit-enter prompt when the message is too long.{{{
     "
@@ -66,212 +96,8 @@ fu search#index() abort "{{{1
         let msg = join(matchlist(msg, '\(.\{'..n1..'}\).*\(.\{'..n2..'}\)')[1:2], '...')
     endif
 
-    " We delay the `:echo`, otherwise it's automatically erased in a Vim terminal buffer.{{{
-    "
-    " Also, we  have come to  the conclusion that, to  display a message  from a
-    " function called  from a  mapping, *reliably*  in Vim  and Neovim,  we must
-    " avoid `<expr>`, and we must delay the `:echo`.
-    "
-    " For more info, see our mapping changing the lightness of the colorscheme.
-    "}}}
-    call timer_start(0, {-> execute('echo '..string(msg), '')})
-    " Do *not* use `printf()`:{{{
-    "
-    "     call timer_start(0, {-> execute(printf('echo ''[%s/%s] %s''', current, total, @/), '')})
-    "
-    " It would break when the search pattern contains a single quote.
-    " We need `string()` to take care of the message *before* passing it to `:echo`.
-    "
-    " And we couldn't include `string()` inside the format passed to `printf()`:
-    "
-    "     execute(printf('echo string(%s)', msg))
-    "
-    " ... because  when `printf()`  would replace the  %s item,  the surrounding
-    " quotes around the  message would be removed, and  `string()` would receive
-    " an  unquoted string  which  would often  cause  an error  (E121: Undefined
-    " variable). The exact same thing happens here:
-    "
-    "     exe 'echo string('.msg.')'
-    "
-    " Remember:
-    " `printf('…%s…%s…')` is really equivalent to a concatenation of strings.
-    " That is,  after being  processed, the quotes  surrounding the  strings are
-    " *removed* in both cases:
-    "
-    "       echo 'here is '.var
-    "     ⇔ echo printf('here is %s', var)
-    "
-    " This is why  we use `string()` (outside a `printf()`'s {fmt}):
-    " to add a  2nd layer of quotes,  which will remain after the  1st layer has
-    " been removed.
-    "}}}
-endfu
-
-" matches_above {{{1
-
-" Efficiently recalculate number of matches above current line using values
-" cached from the previous run.
-"
-" How it works? ; if the current position is near:
-"
-"    - the end, it's faster to compute the number of matches from the current
-"      line to the end, then subtract it from the total (the function is only
-"      invoked if the buffer and the pattern haven't changed, so `total` is the
-"      same as the last time)
-"
-"    - the position where we were last time we invoked this function,
-"      it's faster to compute the number of matches between the 2 positions, then
-"      add/subtract it from the cached number of matches which were above the
-"      old position
-
-fu s:matches_above()
-    " if we're at the beginning of the buffer, there can't be anything above
-    "
-    " it probably also prevents the range `1,.-1` = `1,0` from prompting us with:
-    "
-    "     Backwards range given, OK to swap (y/n)?
-    if line('.') == 1 | return 0 | endif
-
-    " this function is called only if `b:changedtick` hasn't changed, so
-    " even though the position of the cursor may have changed, `total` can't
-    " have changed ────────────┐
-    "                          │
-    let [old_lnum, old_before, total] = b:ms_cache
-
-    let lnum = line('.')
-    " find the nearest point from which we can restart counting:
-    " top, bottom, or previously cached line
-    let to_top    = lnum
-    let to_old    = abs(lnum - old_lnum)
-    let to_bottom = line('$') - lnum
-    let min_dist  = min([to_top, to_old, to_bottom])
-
-    if min_dist == to_top
-        return s:matches_in_range('1,.-1')
-
-    elseif min_dist == to_bottom
-        return total - s:matches_in_range('.,$')
-
-    " otherwise, `min_dist == to_old`, we just need to check relative line order
-    elseif old_lnum < lnum
-        return old_before + s:matches_in_range(old_lnum..',.-1')
-        "                   │
-        "                   └ number of matches between old position and above current one
-
-    elseif old_lnum > lnum
-        return old_before - s:matches_in_range('.,'..old_lnum..'-1')
-        "                   │
-        "                   └ number of matches between current position and above last one
-
-    else " old_lnum == lnum
-        return old_before
-    endif
-endfu
-
-" matches_count {{{1
-
-" Return 2-element array, containing current index and total number of matches
-" of last search pattern in the current buffer.
-"
-" We use `:s///gen` to compute the number of matches inside various ranges,
-" because it seems faster than `:while + search()`.
-" But, Ex commands only work on entire lines. So, we'll split the computing in
-" 2 parts:
-"
-"    - number of matches above current line (`:s///gen`)
-"    - number of matches on current line (`:while + search()`)
-
-fu s:matches_count() abort
-    let view = winsaveview()
-    " folds affect range of ex commands:
-    " https://stackoverflow.com/q/33190754/8243465
-    "
-    " we don't want folds to affect `:s///gen`
-    let [fen_save, winid, bufnr] = [&l:fen, win_getid(), bufnr('%')]
-
-    try
-        setl nofoldenable
-
-        " We must compute the number of matches on the current line NOW.
-        " As soon as we invoke `s:matches_above()` or `s:matches_in_range()`,
-        " we'll be somewhere else.
-        let in_line = s:matches_in_line()
-
-        " check the validity of the cache we have stored in `b:ms_cache`
-        " it's only useful if neither the pattern nor the buffer has changed
-        let cache_id = [@/, b:changedtick]
-        if get(b:, 'ms_cache_id', []) ==# cache_id
-            let before = s:matches_above()
-            let total  = b:ms_cache[-1]
-        else
-            " if the cache can't be used, recompute
-            let before = line('.') == 1 ? 0 : s:matches_in_range('1,.-1')
-            let total  = before + s:matches_in_range('.,$')
-        endif
-
-        " update the cache
-        let b:ms_cache    = [line('.'), before, total]
-        let b:ms_cache_id = cache_id
-    finally
-        if winbufnr(winid) == bufnr
-            let [tabnr, winnr] = win_id2tabwin(winid)
-            call settabwinvar(tabnr, winnr, '&fen', fen_save)
-        endif
-        call winrestview(view)
-    endtry
-
-    return [before + in_line, total]
-endfu
-
-fu s:matches_in_line() abort "{{{1
-" Return number of matches before the cursor, on the current line.
-    let [line, col] = [line('.'), col('.')]
-
-    norm! 0
-    let matches = 0
-    let flag = 'cW'
-    let old_col = 0
-    " Why the `old_col` condition?{{{
-    "
-    " To prevent Vim from counting the same match if the cursor didn't move.
-    " Yes, that might happen with some special patterns.
-    "
-    " MWE:
-    "
-    "     :new
-    "     :1pu='#'
-    "     :echo search('^#\n\zs', 'W', 2)
-    "     2~
-    "     :echo search('^#\n\zs', 'W', 2)
-    "     2~
-    "     ...
-    "}}}
-    let g = 0 | while search(@/, flag, line) && col('.') <= col && col('.') != old_col && g < 999 | let g += 1
-        let matches += 1
-        let old_col = col('.')
-        let flag = 'W'
-    endwhile
-
-    return matches
-endfu
-
-fu s:matches_in_range(range) abort "{{{1
-    let marks_save = [getpos("'["), getpos("']")]
-    " Why `:keepj`?{{{
-    "
-    " To prevent  polluting the jumplist.
-    " It could matter  when we type `<plug>(ms_prev)`.
-    "}}}
-    " Why `~`?{{{
-    "
-    " To prevent the last substitute string (`~`) from being mutated.
-    "}}}
-    " FIXME: `:s` still mutates the last flags
-    " We use `silent!` because of: https://github.com/neovim/neovim/issues/11381
-    let output = execute('keepj '..a:range..'s//~/gen', 'silent!')
-    call setpos("'[", marks_save[0])
-    call setpos("']", marks_save[1])
-    return str2nr(matchstr(output, '\d\+'))
+    echo msg
+    return ''
 endfu
 
 fu search#nohls(...) abort "{{{1
@@ -453,9 +279,8 @@ endfu
 "
 " It works, but debugging an anonymous function is hard. In particular,
 " our `:WTF` command can't show us the location of the error.
-" For more info:
 "
-"     https://github.com/LucHermitte/lh-vim-lib/blob/master/doc/OO.md
+" For more info: https://github.com/LucHermitte/lh-vim-lib/blob/master/doc/OO.md
 "
 " Instead, we give it a proper name, and at the end of the script, we assign its
 " funcref to `s:blink.tick`.
@@ -641,8 +466,14 @@ endfu
 
 " Variables {{{1
 
-" `s:blink` must be initialized AFTER defining the functions
+" don't let `searchcount()` search more than this number of matches
+const s:MAXCOUNT = 1000
+" don't let `searchcount()` search for more than this duration (in ms)
+const s:TIMEOUT = 500
+
+" `s:blink` must be initialized *after* defining the functions
 " `s:tick()` and `s:delete()`.
 let s:blink = {'ticks': 4, 'delay': 50}
 let s:blink.tick   = function('s:tick')
 let s:blink.delete = function('s:delete')
+

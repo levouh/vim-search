@@ -13,68 +13,9 @@ let g:loaded_search = 1
 " More generally,  disable anything fancy  when the search command-line  was not
 " entered from normal mode.
 "}}}
-" TODO: Vim's patch 8.1.1270 has added native support for match index after a search:{{{
-"
-" https://github.com/vim/vim/releases/tag/v8.1.1270
-"
-" You can test it like so:
-"
-"     $ vim -Nu NONE +'set shm-=S' ~/.zshrc
-"     /the
-"
-" However, be aware of 2 limitations.
-" You can't position the indicator on the command-line (it's at the far right).
-" You can't get the index of a match beyond 99:
-"
-"     /pat    [1/>99]   1
-"     /pat    [2/>99]   2
-"     /pat    [3/>99]   3
-"     ...
-"     /pat    [99/>99]  99
-"     /pat    [99/>99]  100
-"     /pat    [99/>99]  101
-"
-" And be aware of 1 pitfall: the count is not always visible.
-"
-" In the case of `*`, you won't see it at all.
-" In the  case of `n`, you  will see it, but  if you enter the  command-line and
-" leave it, you won't see the count anymore when pressing `n`.
-" The issue is due to Vim which does not redraw enough when `'lz'` is set.
-"
-" MWE:
-"
-"     $ vim -Nu <(cat <<'EOF'
-"     set lz
-"     nmap n <plug>(a)<plug>(b)
-"     nno <plug>(a) n
-"     nno <plug>(b) <nop>
-"     EOF
-"     ) ~/.zshrc
-"
-" Search for `the`, then press `n` a few times: the cursor does not seem to move.
-" In reality,  it does  move, but  you don't see  it because  the screen  is not
-" redrawn enough; press `C-l`, and you should see it has correctly moved.
-"
-" Solution: Make  sure that `'lz'` is  temporarily disabled when `n`,  `N`, `*`,
-" `#`, `g*`, `g#`, `gd`, `gD` is pressed; or `:redraw` right after?
-"
-" ---
-"
-" If you use the builtin feature, make sure the view is always preserved.
-" Last time I tried, the view was sometimes lost.
-"
-" For example, we have this line in this file:
-"
-"     nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
-"
-" Position your cursor on `ms_prev`, and press `*`.
-" If  the view  changes, it's  because the  next occurrence  is beyond  what the
-" screen can display.
-"}}}
 " TODO: We don't have any mapping in visual mode for `n` and `N`.{{{
 "
-" So, we don't have any count when pressing `n` while in visual mode.
-" Either add a mapping, or remove `S` from `'shm'`.
+" So, we don't have any count when pressing `n` while in visual mode.  Add a mapping?
 "}}}
 
 " Links {{{1
@@ -157,12 +98,19 @@ augroup END
 nmap <expr><silent><unique> gd search#wrap_gd(1)
 nmap <expr><silent><unique> gD search#wrap_gd(0)
 
-" `<silent>` is important: it prevents `n` and `N` to display their own message
+" Do *not* add `<silent>`!{{{
 "
-" without `<silent>`, when our message (`pattern [12/34]`) is displayed,
-" it erases the previous one, and makes look like the command-line is flickering
-nmap <expr><silent><unique> n search#wrap_n(1)
-nmap <expr><silent><unique> N search#wrap_n(0)
+" It would prevent Nvim from displaying the index of the current match.
+" Nvim doesn't  support `searchcount()`, so instead  we rely on the  `S` flag of
+" `'shm'`,  which –  when absent  – makes  Nvim automatically  displays `pattern
+" [12/34]` on the right of the command-line.
+"
+" Note that by default,  `'shm'` does not contain `S` in Nvim  (which is what we
+" need), but does in  Vim (which is what we want because  we already display our
+" own index message; we don't need another one).
+"}}}
+nmap <expr><unique> n search#wrap_n(1)
+nmap <expr><unique> N search#wrap_n(0)
 
 " Star &friends {{{2
 
@@ -258,9 +206,55 @@ nno <expr><silent> <plug>(ms_view)  search#view()
 
 nno <expr><silent> <plug>(ms_blink) search#blink()
 nno <expr><silent> <plug>(ms_nohls) search#nohls()
-nno       <silent> <plug>(ms_index) :<c-u>call search#index()<cr>
-" We can't  use `<expr>` to  invoke `search#index()`,  because in the  latter we
-" perform a substitution, which is forbidden when the text is locked.
+if has('nvim')
+    nno <plug>(ms_index) <cmd>call search#index()<cr>
+else
+    " Why don't you just remove the `S` flag from `'shm'`?{{{
+    "
+    " Because of 2 limitations.
+    " You can't position the indicator on the command-line (it's at the far right).
+    " You can't get the index of a match beyond 99:
+    "
+    "     /pat    [1/>99]   1
+    "     /pat    [2/>99]   2
+    "     /pat    [3/>99]   3
+    "     ...
+    "     /pat    [99/>99]  99
+    "     /pat    [99/>99]  100
+    "     /pat    [99/>99]  101
+    "
+    " And because of 1 pitfall: the count is not always visible.
+    "
+    " In the case of `*`, you won't see it at all.
+    " In the case of `n`, you will see it, but if you enter the command-line
+    " and leave it, you won't see the count anymore when pressing `n`.
+    " The issue is due to Vim which does not redraw enough when `'lz'` is set.
+    "
+    " MWE:
+    "
+    "     $ vim -Nu <(cat <<'EOF'
+    "         set lz
+    "         nmap n <plug>(a)<plug>(b)
+    "         nno <plug>(a) n
+    "         nno <plug>(b) <nop>
+    "     EOF
+    "     ) ~/.zshrc
+    "
+    " Search for  `the`, then press  `n` a  few times: the  cursor does not  seem to
+    " move.  In reality,  it does move, but  you don't see it because  the screen is
+    " not redrawn enough; press `C-l`, and you should see it has correctly moved.
+    "
+    " It think that's because  when `'lz'` is set, Vim doesn't  redraw in the middle
+    " of a mapping.
+    "
+    " In any case, all these issues stem from a lack of control:
+    "
+    "    - we can't control the maximum of matches
+    "    - we can't control *where* to display the info
+    "    - we can't control *when* to display the info
+    "}}}
+    nno <expr> <plug>(ms_index) search#index()
+endif
 
 " Regroup all customizations behind `<plug>(ms_custom)`
 "                                      ┌ install a one-shot autocmd to disable 'hls' when we move
