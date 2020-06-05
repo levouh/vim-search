@@ -4,10 +4,15 @@ endif
 let g:autoloaded_search = 1
 
 fu! search#match_del() "{{{1
+    " When a search is issued, the current match is highlighted or set to blink
+    " based on the value of "g:search_blink". I've seen some weird cases (mostly
+    " when debugging, where the value won't get set, and hence the highlight doesn't
+    " exist but we will still try to delete it. Use a try/catch to avoid displaying
+    " the error as in my experience, this is not an actual error.
     try
         call matchdelete(get(w:, 'blink_id', -1))
         unlet w:blink_id
-    catch | endtry
+    catch | | endtry
 endfu
 
 fu search#blink() abort "{{{1
@@ -211,6 +216,12 @@ fu s:tick(_) abort dict "{{{1
 
     let active = self.ticks > 0
 
+
+    if !get(g:, 'search_blink', 1)
+        call s:highlight()
+
+        return
+
     " What does the next condition do? {{{
     "
     " Part1:
@@ -260,18 +271,14 @@ fu s:tick(_) abort dict "{{{1
     " immediately.  Otherwise, re-install one.
     "
     " This explains the `if !self.delete()` part of the next condition.
-    "}}}
-
-    if !get(g:, 'search_blink', 1)
-        call s:highlight()
-        return
+    " }}}
     "  (re-)install the hl if:
     "
-    "  ┌ try to delete the hl, and check we haven't been able to do so
-    "  │ if we have, we don't want to re-install a hl immediately (only next tick)
-    "  │                 ┌ the cursor hasn't moved
-    "  │                 │       ┌ the blinking is still active
-    "  │                 │       │
+    "        ┌ try to delete the hl, and check we haven't been able to do so
+    "        │ if we have, we don't want to re-install a hl immediately (only next tick)
+    "        │                 ┌ the cursor hasn't moved
+    "        │                 │       ┌ the blinking is still active
+    "        │                 │       │
     elseif !self.delete() && &hls && active
         "                                1 list describing 1 “position”;              ┐
         "                               `matchaddpos()` can accept up to 8 positions; │
@@ -563,35 +570,89 @@ let s:blink = {'ticks': 4, 'delay': 50}
 let s:blink.tick = function('s:tick')
 let s:blink.delete = function('s:delete')
 
-function! s:highlight() "{{{1
+fu! s:highlight() "{{{1
+    " The timeout in milliseconds to stop looking for the match
     let l:timeout = 30
     let l:pos = [line('.'), col('.')]
+
+    " Limit the search to a specific range for performance reasons,
+    " this denotes 25 lines above and 25 lines below
     let l:context = 25
+
+    " We could be at the top of the file, so the line number might
+    " be 1 for instance, and subtracting 25 from that would make
+    " it negative, so we need to ensure we don't produce a bad value
     let l:top = max([1, pos[0] - context])
+
+    " For the 'stopline' searching downwards, it doesn't matter
     let l:bottom = pos[0] + context
 
+    "      ┌ returns a list with the line and column position of the match respectively
+    "      │                ┌ the pattern for the match, i.e. the current search
+    "      │                │    ┌ search backwards
+    "      │                │    │┌ accept match at cursor position
+    "      │                │    ││
+    "      │                │    ││
     let l:start = searchpos(@/, 'bc', l:top, l:timeout)
+    "                                     │         │
+    "                                     │         └ timeout in milliseconds
+    "                                     └ the line to stop the search at
 
     if l:start == [0, 0]
+        " No match found, stop early
         return
     endif
 
+    "                      ┌ the pattern for the match, i.e. the current search
+    "                      │   ┌ start searching at the cursor position
+    "                      │   │┌ allow a match at the cursor position
+    "                      │   ││┌ move to the end of the match
+    "                      │   │││┌ do not move the cursor
+    "                      │   ││││
     let l:end = searchpos(@/, 'zcen', l:bottom, l:timeout)
+    "                                     │         │
+    "                                     │         └ timeout in milliseconds
+    "                                     └ the line to stop the search at
 
     if l:end == [0, 0]
+        " No match found, stop early
         return
     endif
 
+    " Determine whether or not we are currently inside a match based on the start and end positions of the match
+    " as found above
+    "                 ┌ on or past line start   ┌ on or past column start ┌ on or before line end ┌ on or before column ene
+    "                 │                         │                         │                       │
+    "                 ├────────────────────┐    ├────────────────────┐    ├──────────────────┐    ├──────────────────┐
     let l:is_inside = l:pos[0] >= l:start[0] && l:pos[1] >= l:start[1] && l:pos[0] <= l:end[0] && l:pos[1] <= l:end[1]
 
     if l:is_inside
+        "             ┌ use magic, although it seems like "matchadd()" will do this by default
+        "             │ ┌ a nuber will follow this, so this is searching in the line
+        "             │ │ specified by the number that follows it
+        "             │ │       ┌ the line to search on, see ":h /ordinary-atom"
+        "             │ │       │          ┌ specify the 'l'ine
+        "             │ │       │          │
         let l:pat = '\m\%' . l:start[0] . 'l\%' . l:start[1] . 'c'
+        "                                    │         │        │
+        "                                    │         │        └ specify the 'c'olumn
+        "                                    │         └ column from "searchpos()"
+        "                                    └ same idea as line, but specify the column
 
         if l:start != l:end
+            "      ┌ do the same as above, but continue towards the end of the line
+            "      │                                                ┌ small nuance here is to not match end-of-line
+            "      │                                                │
             let l:pat .= '\_.*\%' . l:end[0] . 'l\%' . l:end[1] . 'c.'
         endif
 
+        " Use the pattern to highlight the current match properly
+        "
+        "                                             ┌ specifies the priority versus other highlight groups
+        "                                             │
         let w:blink_id = matchadd('IncSearch', l:pat, 10, get(w:, 'blink_id', -1))
+        "                                                                      │
+        "                                                                      └ use the next free ID if none have been found
     endif
 endfunction
 
