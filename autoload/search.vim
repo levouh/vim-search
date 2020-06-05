@@ -3,6 +3,13 @@ if exists('g:autoloaded_search')
 endif
 let g:autoloaded_search = 1
 
+fu! search#match_del() "{{{1
+    try
+        call matchdelete(get(w:, 'blink_id', -1))
+        unlet w:blink_id
+    catch | endtry
+endfu
+
 fu search#blink() abort "{{{1
     " every time `search#blink()` is called, we  must reset the keys `ticks` and
     " `delay` in the dictionary `s:blink`
@@ -18,8 +25,7 @@ fu s:delete() abort dict "{{{1
     " also use it for its output.  In `s:blink.tick()`, we test the latter to decide
     " whether we should create a match.
     if exists('w:blink_id')
-        call matchdelete(w:blink_id)
-        unlet w:blink_id
+        call search#match_del()
         return 1
     endif
     return 0
@@ -138,14 +144,14 @@ endfu
 
 fu search#nohls(...) abort "{{{1
     augroup my_search | au!
-        au CursorMoved,CursorMovedI * exe 'au! my_search' | aug! my_search | set nohls
+        au CursorMoved,CursorMovedI * call s:search_finish()
         " Necessary when a search fails (`E486`), and we search for another pattern right afterward.{{{
         "
         " Otherwise, if there is no cursor  motion between the two searches, and
         " the second one succeeds, the cursor does not blink.
         "}}}
         if a:0
-            au CmdlineEnter * exe 'au! my_search' | aug! my_search | set nohls
+            au CmdlineEnter * call s:search_finish()
         endif
     augroup END
     return ''
@@ -256,6 +262,9 @@ fu s:tick(_) abort dict "{{{1
     " This explains the `if !self.delete()` part of the next condition.
     "}}}
 
+    if !get(g:, 'search_blink', 1)
+        call s:highlight()
+        return
     "  (re-)install the hl if:
     "
     "  ┌ try to delete the hl, and check we haven't been able to do so
@@ -263,7 +272,7 @@ fu s:tick(_) abort dict "{{{1
     "  │                 ┌ the cursor hasn't moved
     "  │                 │       ┌ the blinking is still active
     "  │                 │       │
-    if !self.delete() && &hls && active
+    elseif !self.delete() && &hls && active
         "                                1 list describing 1 “position”;              ┐
         "                               `matchaddpos()` can accept up to 8 positions; │
         "                                each position can match:                     │
@@ -554,3 +563,42 @@ let s:blink = {'ticks': 4, 'delay': 50}
 let s:blink.tick = function('s:tick')
 let s:blink.delete = function('s:delete')
 
+function! s:highlight() "{{{1
+    let l:timeout = 30
+    let l:pos = [line('.'), col('.')]
+    let l:context = 25
+    let l:top = max([1, pos[0] - context])
+    let l:bottom = pos[0] + context
+
+    let l:start = searchpos(@/, 'bc', l:top, l:timeout)
+
+    if l:start == [0, 0]
+        return
+    endif
+
+    let l:end = searchpos(@/, 'zcen', l:bottom, l:timeout)
+
+    if l:end == [0, 0]
+        return
+    endif
+
+    let l:is_inside = l:pos[0] >= l:start[0] && l:pos[1] >= l:start[1] && l:pos[0] <= l:end[0] && l:pos[1] <= l:end[1]
+
+    if l:is_inside
+        let l:pat = '\m\%' . l:start[0] . 'l\%' . l:start[1] . 'c'
+
+        if l:start != l:end
+            let l:pat .= '\_.*\%' . l:end[0] . 'l\%' . l:end[1] . 'c.'
+        endif
+
+        let w:blink_id = matchadd('IncSearch', l:pat, 10, get(w:, 'blink_id', -1))
+    endif
+endfunction
+
+function! s:search_finish() "{{{1
+    exe 'au! my_search'
+    aug! my_search
+    set nohls
+
+    call search#match_del()
+endfunction

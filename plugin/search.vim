@@ -222,6 +222,10 @@ set incsearch
 " Autocmds {{{1
 
 augroup hls_after_slash | au!
+augroup my_hls_after_slash | au!
+
+    au WinLeave * call search#match_del()
+
     " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
     " writing a regex.  Not just the next match.  See `:h 'is`.
     " So, we make sure `'hls'` is set when we enter a search command-line.
