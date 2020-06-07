@@ -3,7 +3,7 @@ if exists('g:autoloaded_search')
 endif
 let g:autoloaded_search = 1
 
-fu! search#match_del() "{{{1
+fu! search#match_del() abort "{{{1
     " When a search is issued, the current match is highlighted or set to blink
     " based on the value of "g:search_blink". I've seen some weird cases (mostly
     " when debugging, where the value won't get set, and hence the highlight doesn't
@@ -12,7 +12,8 @@ fu! search#match_del() "{{{1
     try
         call matchdelete(get(w:, 'blink_id', -1))
         unlet w:blink_id
-    catch | | endtry
+    catch
+    endtry
 endfu
 
 fu search#blink() abort "{{{1
