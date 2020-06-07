@@ -223,7 +223,11 @@ set incsearch
 
 augroup hls_after_slash | au!
 augroup my_hls_after_slash | au!
-
+    " The ID of the highlight for the current match is stored in a window-local
+    " variable, so this _has_ to be ":h WinLeave" instead of other window
+    " autocommands. This feels natural based on the other functionality as
+    " the match is removed whenever cursor moves, which technically happens
+    " when window focus changes.
     au WinLeave * call search#match_del()
 
     " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're

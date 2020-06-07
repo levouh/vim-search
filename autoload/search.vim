@@ -218,6 +218,8 @@ fu s:tick(_) abort dict "{{{1
 
 
     if !get(g:, 'search_blink', 1)
+        " If the user has not specified that they want blink, just highlight
+        " the current match as long as the users cursor is inside of it
         call s:highlight()
 
         return
@@ -657,9 +659,17 @@ fu! s:highlight() "{{{1
 endfunction
 
 function! s:search_finish() "{{{1
+    " When the search is finished, i.e. when the cursor is no
+    " longer on a match, we want to first clear the autocommand
+    " group bceause the search has 'completed'
     exe 'au! my_search'
     aug! my_search
+
+    " Then we want to get rid of the highlighted matches
     set nohls
 
+    " And finally, remove the highlight for the current match
+    " if it exists, it likely won't if the user is using the 'blink'
+    " mode
     call search#match_del()
 endfunction
