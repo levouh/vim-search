@@ -18,29 +18,12 @@ let g:loaded_search = 1
 " So, we don't have any count when pressing `n` while in visual mode.  Add a mapping?
 "}}}
 
-" Links {{{1
-
-" Ideas for other implementations.
-"
-" Interesting:
-" https://github.com/neovim/neovim/issues/5581
-
-" CACHING
-"
-" To improve efficiency, we cache results of last counting. This makes 'n'
-" super fast. We only cache linewise counts, and in-line part is always
-" recalculated. This prevents counting error from building up after multiple
-" searches if in-line count was imprecise (which happens with regex searches).
-"
-" Source:
-" https://github.com/google/vim-searchindex/blob/master/plugin/searchindex.vim
-
 " Mappings {{{1
 " Disable unwanted recursivity {{{2
 
-" We remap the following keys RECURSIVELY:
+" We remap the following keys *recursively*:
 "
-"     cr
+"     CR
 "     n N
 "     * #
 "     g* g#
@@ -49,9 +32,10 @@ let g:loaded_search = 1
 " Each time, we use a wrapper in the rhs.
 "
 " Any key returned by a wrapper will be remapped.
-" We want this remapping, but only for `<plug>(…)` keys.
+" We want this remapping, but only for `<plug>(...)` keys.
 " For anything else, remapping should be forbidden.
-" So, we install non-recursive mappings for various keys we may return in our wrappers.
+" So, we  install non-recursive mappings for  various keys we may  return in our
+" wrappers.
 
 cno <plug>(ms_cr)    <cr>
 cno <plug>(ms_up)    <up>
@@ -72,9 +56,9 @@ nno <plug>(ms_N)     N
 "}}}
 nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 
-" cr  gd  n {{{2
+" CR  gd  n {{{2
 
-" NOTE:
+" Note:
 " Don't add `<silent>` to the next mapping.
 " When we search for a pattern which has no match in the current buffer,
 " the combination of `set shm+=s` and `<silent>`, would make Vim display the
@@ -85,6 +69,7 @@ nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 "     Press ENTER or type command to continue
 "
 " Without `<silent>`, Vim behaves as expected:
+"
 "     E486: Pattern not found: garbage
 
 augroup ms_cmdwin | au!
@@ -102,8 +87,8 @@ nmap <expr><silent><unique> gD search#wrap_gd(0)
 "
 " It would prevent Nvim from displaying the index of the current match.
 " Nvim doesn't  support `searchcount()`, so instead  we rely on the  `S` flag of
-" `'shm'`,  which –  when absent  – makes  Nvim automatically  displays `pattern
-" [12/34]` on the right of the command-line.
+" `'shm'`, which – when absent – makes Nvim automatically display `pattern [12/34]`
+" on the right of the command-line.
 "
 " Note that by default,  `'shm'` does not contain `S` in Nvim  (which is what we
 " need), but does in  Vim (which is what we want because  we already display our
@@ -119,14 +104,14 @@ nmap <expr><unique> N search#wrap_n(0)
 " The following mappings work  in normal mode, but also in  visual mode, to fill
 " that gap.
 "
-" `<silent>` is useful to avoid `/ pattern cr` to display a brief message on
+" `<silent>` is useful to avoid `/ pattern CR` to display a brief message on
 " the command-line.
 nmap <expr><silent><unique> * search#wrap_star('*')
 "                             │
-"                             └ * c-o
-"                               / up cr c-o
+"                             └ * C-o
+"                               / Up CR C-o
 "                               <plug>(ms_nohls)
-"                               <plug>(ms_view)  ⇔  <number> c-e / c-y
+"                               <plug>(ms_view)  ⇔  <number> C-e / C-y
 "                               <plug>(ms_blink)
 "                               <plug>(ms_index)
 
@@ -134,15 +119,17 @@ nmap <expr><silent><unique> #  search#wrap_star('#')
 nmap <expr><silent><unique> g* search#wrap_star('g*')
 nmap <expr><silent><unique> g# search#wrap_star('g#')
 " Why don't we implement `g*` and `g#` mappings?{{{
-" If we search a visual selection, we probably don't want to add the anchors:
-"         \< \>
 "
-" So our implementation of `v_*` and `v_#` don't add them.
+" If we search a visual selection, we probably don't want to add the anchors:
+"
+"     \< \>
+"
+" So our implementation of `v_*` and `v_#` doesn't add them.
 "}}}
 
 " FIXME: The plugin may temporarily be broken when you visually select a blockwise text.{{{
 "
-" As an example, select 'foo' and 'bar', and press `*`:
+" As an example, select the block `foo` + `bar`, and press `*`:
 "
 "     foo
 "     bar
@@ -162,18 +149,20 @@ nmap <expr><silent><unique> g# search#wrap_star('g#')
 "
 " ---
 "
-" For now one solution is to press `*` on a word in normal mode.
+" For now, one solution is to press `*` on a word in normal mode.
 "}}}
 "                     ┌ just append keys at the end to add some fancy features
 "                     │                 ┌ copy visual selection
 "                     │                 │┌ search for
 "                     │                 ││┌ insert an expression
-"                     │                 ││├─────┐
-xmap <expr><unique> * search#wrap_star('y/<c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
-"                                               ├──────────────┘│             │
-"                                               │               │             └ validate search
-"                                               │               └ validate expression
-"                                               └ escape unnamed register
+"                     │                 │││ (literally hence why two C-r;
+"                     │                 │││  this matters, e.g., if the selection is "xxx\<c-\>\<c-n>yyy")
+"                     │                 ││├─────────┐
+xmap <expr><unique> * search#wrap_star('y/<c-r><c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
+"                                                    ├──────────────┘│             │
+"                                                    │               │             └ validate search
+"                                                    │               └ validate expression
+"                                                    └ escape unnamed register
 
 " Why?{{{
 "
@@ -188,21 +177,21 @@ xmap <expr><unique> * search#wrap_star('y/<c-r>=search#escape(1)<plug>(ms_cr)<pl
 "}}}
 xmap g* *
 
-xmap <expr><unique> # search#wrap_star('y?<c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
-"                                                             │
-"                                                             └ direction of the search
-"                                                               necessary to know which character among [/?]
-"                                                               is special, and needs to be escaped
+xmap <expr><unique> # search#wrap_star('y?<c-r><c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
+"                                                                  │
+"                                                                  └ direction of the search
+"                                                                    necessary to know which character among [/?]
+"                                                                    is special, and needs to be escaped
 
-" Customizations (blink, index, …) {{{2
+" Customizations (blink, index, ...) {{{2
 
-nno <expr><silent> <plug>(ms_restore_unnamed_register)  search#restore_unnamed_register()
+nno <expr><silent> <plug>(ms_restore_unnamed_register) search#restore_unnamed_register()
 
 " This mapping  is used in `search#wrap_star()` to reenable  our autocmd after a
 " search via star &friends.
-nno <expr>         <plug>(ms_re-enable_after_slash)  search#after_slash_status('delete')
+nno <expr> <plug>(ms_re-enable_after_slash) search#after_slash_status('delete')
 
-nno <expr><silent> <plug>(ms_view)  search#view()
+nno <expr><silent> <plug>(ms_view) search#view()
 
 nno <expr><silent> <plug>(ms_blink) search#blink()
 nno <expr><silent> <plug>(ms_nohls) search#nohls()
@@ -249,7 +238,7 @@ else
     "
     " In any case, all these issues stem from a lack of control:
     "
-    "    - we can't control the maximum of matches
+    "    - we can't control the maximum count of matches
     "    - we can't control *where* to display the info
     "    - we can't control *when* to display the info
     "}}}
@@ -261,9 +250,9 @@ endif
 "                                      │               ┌ unfold if needed, restore the view after `*` &friends
 "                                      │               │
 nmap <silent> <plug>(ms_custom) <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
-"                                                                      │               │
-"                                         make the current match blink ┘               │
-"                                                      print `[12/34]` kind of message ┘
+"                                                                     │               │
+"                                        make the current match blink ┘               │
+"                                                     print `[12/34]` kind of message ┘
 
 " We need this mapping for when we leave the search command-line from visual mode.
 xno <expr><silent> <plug>(ms_custom) search#nohls()
@@ -272,16 +261,16 @@ xno <expr><silent> <plug>(ms_custom) search#nohls()
 "
 " https://github.com/junegunn/vim-slash/issues/4
 "
-"     c /pattern cr
+"     c /pattern CR
 "
-" ... inserts a succession of literal  <plug>(…) strings in the buffer, in front
-" of `pattern`.
+" ... inserts  a succession of literal  `<plug>(...)` strings in the  buffer, in
+" front of `pattern`.
 " The problem comes from the wrong assumption that after a `/` search, we are in
 " normal mode. We could also be in insert mode.
 "}}}
 " Why don't you disable `<plug>(ms_nohls)`?{{{
 "
-" Because,  the search  in `c  /pattern cr`  has enabled  'hls', so  we need  to
+" Because, the  search in  `c /pattern CR`  has enabled `'hls'`,  so we  need to
 " disable it.
 "}}}
 ino <silent> <plug>(ms_nohls) <c-r>=search#nohls_on_leave()<cr>
@@ -297,7 +286,7 @@ set ignorecase
 " but don't ignore the case if it contains an uppercase character
 set smartcase
 
-" Incremental search
+" incremental search
 set incsearch
 
 " Autocmds {{{1
@@ -305,7 +294,7 @@ set incsearch
 augroup my_hls_after_slash | au!
 
     " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
-    " writing a regex.  Not just the next match. See `:h 'is`.
+    " writing a regex.  Not just the next match.  See `:h 'is`.
     " So, we make sure `'hls'` is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
     "               ├──┘
@@ -314,12 +303,13 @@ augroup my_hls_after_slash | au!
     "                 https://github.com/vim/vim/pull/2198#issuecomment-341131934
     " And why do you escape the question mark? {{{
     "
-    " Because, in the pattern of an autocmd, it has a special meaning:
+    " Because, in the pattern of an autocmd, it has a special meaning.
+    " From `:h file-pattern`:
     "
-    "     any character (:h file-pattern)
+    " >     ?     matches any single character
     "
     " We want the literal meaning, to only match a backward search command-line.
-    " Not all the others (:h cmdwin-char).
+    " Not all the others (`:h cmdwin-char`).
     "
     " Inside a collection, it seems `?` doesn't work (no meaning).
     " To make some tests, use this snippet:
@@ -356,7 +346,7 @@ augroup my_hls_after_slash | au!
 
     " Why `search#after_slash_status()`?{{{
     "
-    " To disable this part of the autocmd when we do `/ up cr c-o`.
+    " To disable this part of the autocmd when we do `/ Up CR C-o`.
     "
     " TODO: Once  Nvim supports  `state()`,  try to  remove  this function,  and
     " replace it with `state('m') == ''`.
@@ -399,7 +389,7 @@ augroup my_hls_after_slash | au!
 augroup END
 
 augroup hoist_noic | au!
-    " Why an indicator for the 'ignorecase' option?{{{
+    " Why an indicator for the `'ignorecase'` option?{{{
     "
     " Recently, it  was temporarily  reset by  `$VIMRUNTIME/indent/vim.vim`, but
     " was not properly set again.
@@ -418,10 +408,11 @@ if !has('nvim') | finish | endif
 augroup fix_E20 | au!
     " https://github.com/vim/vim/issues/3837
     " Purpose:{{{
-    " Suppose we've just loaded a buffer in which the visual marks are not set anywhere.
-    " We enter the command-line, and recall an old command which begins with the
-    " visual range "'<,'>".
-    " Because we've set the `'incsearch'` option, it will raise this error:
+    "
+    " Suppose we've just loaded  a buffer in which the visual  marks are not set
+    " anywhere.   We enter  the command-line,  and recall  an old  command which
+    " begins with the visual range  "'<,'>". Because we've set the `'incsearch'`
+    " option, it will raise this error:
     "
     "     E20: Mark not set
     "
