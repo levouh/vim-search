@@ -54,7 +54,7 @@ nno <plug>(ms_N)     N
 "
 " https://github.com/neovim/neovim/issues/9874
 "}}}
-nno <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
+nno <silent> <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 
 " CR  gd  n {{{2
 
@@ -78,10 +78,8 @@ augroup ms_cmdwin | au!
                \ | endif
 augroup END
 
-" I don't think `<silent>` is needed here, but we use it to stay consistent,
-" and who knows, it may be useful to sometimes avoid a brief message
-nmap <expr><silent><unique> gd search#wrap_gd(1)
-nmap <expr><silent><unique> gD search#wrap_gd(0)
+nmap <expr><unique> gd search#wrap_gd(1)
+nmap <expr><unique> gD search#wrap_gd(0)
 
 " Do *not* add `<silent>`!{{{
 "
@@ -111,7 +109,7 @@ nmap <expr><silent><unique> * search#wrap_star('*')
 "                             └ * C-o
 "                               / Up CR C-o
 "                               <plug>(ms_nohls)
-"                               <plug>(ms_view)  ⇔  <number> C-e / C-y
+"                               <plug>(ms_view)  ⇔  {number} C-e / C-y
 "                               <plug>(ms_blink)
 "                               <plug>(ms_index)
 
@@ -151,18 +149,24 @@ nmap <expr><silent><unique> g# search#wrap_star('g#')
 "
 " For now, one solution is to press `*` on a word in normal mode.
 "}}}
-"                     ┌ just append keys at the end to add some fancy features
-"                     │                 ┌ copy visual selection
-"                     │                 │┌ search for
-"                     │                 ││┌ insert an expression
-"                     │                 │││ (literally hence why two C-r;
-"                     │                 │││  this matters, e.g., if the selection is "xxx\<c-\>\<c-n>yyy")
-"                     │                 ││├─────────┐
-xmap <expr><unique> * search#wrap_star('y/<c-r><c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
-"                                                    ├──────────────┘│             │
-"                                                    │               │             └ validate search
-"                                                    │               └ validate expression
-"                                                    └ escape unnamed register
+xmap <expr><silent><unique> * search#wrap_star('y/<c-r><c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
+"                             │                 ││├─────────┘│               │            │{{{
+"                             │                 │││          │               │            └ validate search
+"                             │                 │││          │               │
+"                             │                 │││          │               └ validate expression
+"                             │                 │││          │
+"                             │                 │││          └ escape unnamed register
+"                             │                 │││
+"                             │                 ││└ insert an expression
+"                             │                 ││  (literally hence why two C-r;
+"                             │                 ││  this matters, e.g., if the selection is "xxx\<c-\>\<c-n>yyy")
+"                             │                 ││
+"                             │                 │└ search for
+"                             │                 │
+"                             │                 └ copy visual selection
+"                             │
+"                             └ just append keys at the end to add some fancy features
+"}}}
 
 " Why?{{{
 "
@@ -177,24 +181,24 @@ xmap <expr><unique> * search#wrap_star('y/<c-r><c-r>=search#escape(1)<plug>(ms_c
 "}}}
 xmap g* *
 
-xmap <expr><unique> # search#wrap_star('y?<c-r><c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
-"                                                                  │
-"                                                                  └ direction of the search
-"                                                                    necessary to know which character among [/?]
-"                                                                    is special, and needs to be escaped
+xmap <expr><silent><unique> # search#wrap_star('y?<c-r><c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
+"                                                                          │
+"                                                                          └ direction of the search
+"                                                       necessary to know which character among [/?]
+"                                                       is special, and needs to be escaped
 
 " Customizations (blink, index, ...) {{{2
 
-nno <expr><silent> <plug>(ms_restore_unnamed_register) search#restore_unnamed_register()
+nno <expr> <plug>(ms_restore_unnamed_register) search#restore_unnamed_register()
 
 " This mapping  is used in `search#wrap_star()` to reenable  our autocmd after a
 " search via star &friends.
 nno <expr> <plug>(ms_re-enable_after_slash) search#after_slash_status('delete')
 
-nno <expr><silent> <plug>(ms_view) search#view()
+nno <expr> <plug>(ms_view) search#view()
 
-nno <expr><silent> <plug>(ms_blink) search#blink()
-nno <expr><silent> <plug>(ms_nohls) search#nohls()
+nno <expr> <plug>(ms_blink) search#blink()
+nno <expr> <plug>(ms_nohls) search#nohls()
 if has('nvim')
     nno <plug>(ms_index) <cmd>call search#index()<cr>
 else
@@ -246,16 +250,16 @@ else
 endif
 
 " Regroup all customizations behind `<plug>(ms_custom)`
-"                                      ┌ install a one-shot autocmd to disable 'hls' when we move
-"                                      │               ┌ unfold if needed, restore the view after `*` &friends
-"                                      │               │
-nmap <silent> <plug>(ms_custom) <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
-"                                                                     │               │
-"                                        make the current match blink ┘               │
-"                                                     print `[12/34]` kind of message ┘
+"                             ┌ install a one-shot autocmd to disable 'hls' when we move
+"                             │               ┌ unfold if needed, restore the view after `*` &friends
+"                             │               │
+nmap <plug>(ms_custom) <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
+"                                                            │               │
+"                               make the current match blink ┘               │
+"                                            print `[12/34]` kind of message ┘
 
 " We need this mapping for when we leave the search command-line from visual mode.
-xno <expr><silent> <plug>(ms_custom) search#nohls()
+xno <expr> <plug>(ms_custom) search#nohls()
 
 " Without the next mappings, we face this issue:{{{
 "
@@ -270,13 +274,13 @@ xno <expr><silent> <plug>(ms_custom) search#nohls()
 "}}}
 " Why don't you disable `<plug>(ms_nohls)`?{{{
 "
-" Because, the  search in  `c /pattern CR`  has enabled `'hls'`,  so we  need to
+" Because the  search in  `c /pattern  CR` has  enabled `'hls'`,  so we  need to
 " disable it.
 "}}}
 ino <silent> <plug>(ms_nohls) <c-r>=search#nohls_on_leave()<cr>
-ino <silent> <plug>(ms_index) <nop>
-ino <silent> <plug>(ms_blink) <nop>
-ino <silent> <plug>(ms_view)  <nop>
+ino          <plug>(ms_index) <nop>
+ino          <plug>(ms_blink) <nop>
+ino          <plug>(ms_view)  <nop>
 " }}}1
 " Options {{{1
 
@@ -292,100 +296,15 @@ set incsearch
 " Autocmds {{{1
 
 augroup my_hls_after_slash | au!
-
     " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
     " writing a regex.  Not just the next match.  See `:h 'is`.
     " So, we make sure `'hls'` is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
-    "               ├──┘
-    "               └ we could also write this: [/\?]
-    "                 but it doesn't work on Windows:
-    "                 https://github.com/vim/vim/pull/2198#issuecomment-341131934
-    " And why do you escape the question mark? {{{
-    "
-    " Because, in the pattern of an autocmd, it has a special meaning.
-    " From `:h file-pattern`:
-    "
-    " >     ?     matches any single character
-    "
-    " We want the literal meaning, to only match a backward search command-line.
-    " Not all the others (`:h cmdwin-char`).
-    "
-    " Inside a collection, it seems `?` doesn't work (no meaning).
-    " To make some tests, use this snippet:
-    "
-    "     augroup test_pattern | au!
-    "         "         ✔
-    "                        ┌ it probably works because the pattern
-    "                        │ is supposed to be a single character,
-    "                        │ so Vim interprets `?` literally, when it's alone
-    "                        │
-    "         au CmdWinEnter ?     nno <buffer> cd :echo 'hello'<cr>
-    "         au CmdWinEnter \?    nno <buffer> cd :echo 'hello'<cr>
-    "         au CmdWinEnter /,\?  nno <buffer> cd :echo 'hello'<cr>
-    "         au CmdWinEnter [/\?] nno <buffer> cd :echo 'hello'<cr>
-    "
-    "         "         ✘ (match any command-line)
-    "         au CmdWinEnter /,?   nno <buffer> cd :echo 'hello'<cr>
-    "         "         ✘ (only / is affected)
-    "         au CmdWinEnter [/?]  nno <buffer> cd :echo 'hello'<cr>
-    "     augroup END
-    "}}}
 
     " Restore the state of `'hls'`.
     " It if a search has been performed, set it again.
     " If the search fails, disable it.
-    au CmdlineLeave /,\? call search#toggle_hls('restore')
-        \ | if getcmdline() isnot# '' && search#after_slash_status() == 1
-        \ |     call search#set_hls()
-        \ |     call timer_start(0, {->
-        \           v:errmsg[:4] is# 'E486:'
-        \             ? search#nohls(1)
-        \             : mode() =~# '[nv]' ? feedkeys("\<plug>(ms_custom)", 'i') : ''})
-        \ | endif
-
-    " Why `search#after_slash_status()`?{{{
-    "
-    " To disable this part of the autocmd when we do `/ Up CR C-o`.
-    "
-    " TODO: Once  Nvim supports  `state()`,  try to  remove  this function,  and
-    " replace it with `state('m') == ''`.
-    "}}}
-    " Why `v:errmsg...` ?{{{
-    "
-    " Open 2 windows with 2 buffers A and B.
-    " In A, search for a pattern which has a match in B but not in A.
-    " Move the cursor: the highlighting should be disabled in B, but it's not.
-    " This is because Vim stops processing a mapping as soon as an error occurs:
-    "
-    " https://github.com/junegunn/vim-slash/issues/5
-    " `:h map-error`
-    "}}}
-    " Why the timer?{{{
-    "
-    " Because we haven't performed the search yet.
-    " `CmdlineLeave` is fired just before.
-    "}}}
-    " Do *not* move `feedkeys()` outside the timer!{{{
-    "
-    " It could trigger a hit-enter prompt.
-    "
-    " If you move it outside the timer,  it will be run unconditionally; even if
-    " the search fails.
-    " And sometimes, when we would search for some pattern which is not matched,
-    " Vim could display 2 messages.  One for the pattern, and one for E486:
-    "
-    "     /garbage
-    "     E486: Pattern not found: garbage
-    "
-    " This causes a hit-enter prompt, which is annoying/distracting.
-    " The fed keys don't even seem to matter.
-    " It's hard to reproduce; probably a weird Vim bug...
-    "
-    " Anyway, after a failed search, there is no reason to feed `<plug>(ms_custom)`;
-    " there is no cursor to make blink, no index to print...
-    " It should be fed only if the pattern was found.
-    "}}}
+    au CmdlineLeave /,\? call search#hls_after_slash()
 augroup END
 
 augroup hoist_noic | au!

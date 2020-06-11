@@ -37,6 +37,60 @@ fu search#escape(is_fwd) abort "{{{1
     return '\V'..substitute(escape(@", '\'..(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
 endfu
 
+fu search#hls_after_slash() abort "{{{1
+    call search#toggle_hls('restore')
+    " Why `search#after_slash_status()`?{{{
+    "
+    " To disable this part of the autocmd when we do `/ Up CR C-o`.
+    "
+    " TODO: Once  Nvim supports  `state()`,  try to  remove  this function,  and
+    " replace it with `state('m') == ''`.
+    "}}}
+    if getcmdline() isnot# '' && search#after_slash_status() == 1
+        call search#set_hls()
+        " Why `v:errmsg...` ?{{{
+        "
+        " Open 2 windows with 2 buffers A and B.
+        " In A, search for a pattern which has a match in B but not in A.
+        " Move the cursor: the highlighting should be disabled in B, but it's not.
+        " This is because Vim stops processing a mapping as soon as an error occurs:
+        "
+        " https://github.com/junegunn/vim-slash/issues/5
+        " `:h map-error`
+        "}}}
+        " Why the timer?{{{
+        "
+        " Because we haven't performed the search yet.
+        " `CmdlineLeave` is fired just before.
+        "}}}
+        " Do *not* move `feedkeys()` outside the timer!{{{
+        "
+        " It could trigger a hit-enter prompt.
+        "
+        " If you move it outside the timer, it will be run unconditionally; even
+        " if the search fails.
+        " And sometimes,  when we  would search  for some  pattern which  is not
+        " matched, Vim could  display 2 messages.  One for the  pattern, and one
+        " for E486:
+        "
+        "     /garbage
+        "     E486: Pattern not found: garbage
+        "
+        " This causes a hit-enter prompt, which is annoying/distracting.
+        " The fed keys don't even seem to matter.
+        " It's hard to reproduce; probably a weird Vim bug...
+        "
+        " Anyway,  after   a  failed  search,   there  is  no  reason   to  feed
+        " `<plug>(ms_custom)`; there  is no  cursor to make  blink, no  index to
+        " print...  It should be fed only if the pattern was found.
+        "}}}
+        call timer_start(0, {->
+            \ v:errmsg[:4] is# 'E486:'
+            \   ? search#nohls(1)
+            \   : mode() =~# '[nv]' ? feedkeys("\<plug>(ms_custom)", 'i') : ''})
+    endif
+endfu
+
 fu search#index() abort "{{{1
     " Nvim doesn't support `searchcount()`.{{{
     "
@@ -54,10 +108,12 @@ fu search#index() abort "{{{1
     " The latter occurs at the *end* of the mapping, so `'lz'` doesn't cause any
     " issue.
     "}}}
-    if has('nvim') && !exists('s:lz_save')
-        let s:lz_save = &lz
-        set nolz
-        exe 'au CursorMoved * ++once let &lz = '..s:lz_save..' | unlet! s:lz_save'
+    if has('nvim')
+        if !exists('s:lz_save')
+            let s:lz_save = &lz
+            set nolz
+            exe 'au CursorMoved * ++once let &lz = '..s:lz_save..' | unlet! s:lz_save'
+        endif
         return ''
     endif
 
@@ -67,19 +123,20 @@ fu search#index() abort "{{{1
     " in case the pattern is invalid (`E54`, `E55`, `E871`, ...)
     catch
         echohl ErrorMsg | echom v:exception | echohl NONE
+        return ''
     endtry
     let msg = ''
     if incomplete == 0
-        " `printf()` adds a padding of 0s  to prevent the pattern from "dancing"
-        " when cycling through many matches by smashing `n`
-        let msg = '['..printf('%0*d', len(total), current)..'/'..total..'] '..@/
+        " `printf()`  adds a  padding  of  spaces to  prevent  the pattern  from
+        " "dancing" when cycling through many matches by smashing `n`
+        let msg = '['..printf('%*d', len(total), current)..'/'..total..'] '..@/
     elseif incomplete == 1 " recomputing took too much time
         let msg = '[?/?] '..@/
     elseif incomplete == 2 " too many matches
         if result.total == (result.maxcount+1) && result.current <= result.maxcount
-            let msg = '['..printf('%0*d', len(total-1), current)..'/>'..(total-1)..'] '..@/
+            let msg = '['..printf('%*d', len(total-1), current)..'/>'..(total-1)..'] '..@/
         else
-            let msg = '[>'..printf('%0*d', len(total-1), current-1)..'/>'..(total-1)..'] '..@/
+            let msg = '[>'..printf('%*d', len(total-1), current-1)..'/>'..(total-1)..'] '..@/
         endif
     endif
 
