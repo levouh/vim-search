@@ -42,18 +42,6 @@ cno <plug>(ms_up)    <up>
 nno <plug>(ms_slash) /
 nno <plug>(ms_n)     n
 nno <plug>(ms_N)     N
-" Why don't you simply use `C-o` in the rhs?{{{
-"
-" It worked in the past, but not anymore.
-" In Nvim, the jumplist is not updated like in Vim.
-" If the cursor line doesn't change, no entry is added.
-"
-" We could use ``` `` ``` in Nvim and `C-o` in Vim.
-" But there would still be an issue when we press `*` while visually selecting a
-" unique text in the buffer.
-"
-" https://github.com/neovim/neovim/issues/9874
-"}}}
 nno <silent> <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
 
 " CR  gd  n {{{2
@@ -81,17 +69,6 @@ augroup END
 nmap <expr><unique> gd search#wrap_gd(1)
 nmap <expr><unique> gD search#wrap_gd(0)
 
-" Do *not* add `<silent>`!{{{
-"
-" It would prevent Nvim from displaying the index of the current match.
-" Nvim doesn't  support `searchcount()`, so instead  we rely on the  `S` flag of
-" `'shm'`, which – when absent – makes Nvim automatically display `pattern [12/34]`
-" on the right of the command-line.
-"
-" Note that by default,  `'shm'` does not contain `S` in Nvim  (which is what we
-" need), but does in  Vim (which is what we want because  we already display our
-" own index message; we don't need another one).
-"}}}
 nmap <expr><unique> n search#wrap_n(1)
 nmap <expr><unique> N search#wrap_n(0)
 
@@ -199,55 +176,51 @@ nno <expr> <plug>(ms_view) search#view()
 
 nno <expr> <plug>(ms_blink) search#blink()
 nno <expr> <plug>(ms_nohls) search#nohls()
-if has('nvim')
-    nno <plug>(ms_index) <cmd>call search#index()<cr>
-else
-    " Why don't you just remove the `S` flag from `'shm'`?{{{
-    "
-    " Because of 2 limitations.
-    " You can't position the indicator on the command-line (it's at the far right).
-    " You can't get the index of a match beyond 99:
-    "
-    "     /pat    [1/>99]   1
-    "     /pat    [2/>99]   2
-    "     /pat    [3/>99]   3
-    "     ...
-    "     /pat    [99/>99]  99
-    "     /pat    [99/>99]  100
-    "     /pat    [99/>99]  101
-    "
-    " And because of 1 pitfall: the count is not always visible.
-    "
-    " In the case of `*`, you won't see it at all.
-    " In the case of `n`, you will see it, but if you enter the command-line
-    " and leave it, you won't see the count anymore when pressing `n`.
-    " The issue is due to Vim which does not redraw enough when `'lz'` is set.
-    "
-    " MWE:
-    "
-    "     $ vim -Nu <(cat <<'EOF'
-    "         set lz
-    "         nmap n <plug>(a)<plug>(b)
-    "         nno <plug>(a) n
-    "         nno <plug>(b) <nop>
-    "     EOF
-    "     ) ~/.zshrc
-    "
-    " Search for  `the`, then press  `n` a  few times: the  cursor does not  seem to
-    " move.  In reality,  it does move, but  you don't see it because  the screen is
-    " not redrawn enough; press `C-l`, and you should see it has correctly moved.
-    "
-    " It think that's because  when `'lz'` is set, Vim doesn't  redraw in the middle
-    " of a mapping.
-    "
-    " In any case, all these issues stem from a lack of control:
-    "
-    "    - we can't control the maximum count of matches
-    "    - we can't control *where* to display the info
-    "    - we can't control *when* to display the info
-    "}}}
-    nno <expr> <plug>(ms_index) search#index()
-endif
+" Why don't you just remove the `S` flag from `'shm'`?{{{
+"
+" Because of 2 limitations.
+" You can't position the indicator on the command-line (it's at the far right).
+" You can't get the index of a match beyond 99:
+"
+"     /pat    [1/>99]   1
+"     /pat    [2/>99]   2
+"     /pat    [3/>99]   3
+"     ...
+"     /pat    [99/>99]  99
+"     /pat    [99/>99]  100
+"     /pat    [99/>99]  101
+"
+" And because of 1 pitfall: the count is not always visible.
+"
+" In the case of `*`, you won't see it at all.
+" In the case of `n`, you will see it, but if you enter the command-line
+" and leave it, you won't see the count anymore when pressing `n`.
+" The issue is due to Vim which does not redraw enough when `'lz'` is set.
+"
+" MWE:
+"
+"     $ vim -Nu <(cat <<'EOF'
+"         set lz
+"         nmap n <plug>(a)<plug>(b)
+"         nno <plug>(a) n
+"         nno <plug>(b) <nop>
+"     EOF
+"     ) ~/.zshrc
+"
+" Search for  `the`, then press  `n` a  few times: the  cursor does not  seem to
+" move.  In reality,  it does move, but  you don't see it because  the screen is
+" not redrawn enough; press `C-l`, and you should see it has correctly moved.
+"
+" It think that's because  when `'lz'` is set, Vim doesn't  redraw in the middle
+" of a mapping.
+"
+" In any case, all these issues stem from a lack of control:
+"
+"    - we can't control the maximum count of matches
+"    - we can't control *where* to display the info
+"    - we can't control *when* to display the info
+"}}}
+nno <expr> <plug>(ms_index) search#index()
 
 " Regroup all customizations behind `<plug>(ms_custom)`
 "                             ┌ install a one-shot autocmd to disable 'hls' when we move
@@ -320,60 +293,4 @@ augroup hoist_noic | au!
         \ expand('<sfile>')..':'..expand('<sflnum>'))
     au OptionSet ignorecase call timer_start(0, {-> execute('redrawt')})
 augroup END
-
-if !has('nvim') | finish | endif
-
-" Fixed by: https://github.com/vim/vim/releases/tag/v8.1.2338
-augroup fix_E20 | au!
-    " https://github.com/vim/vim/issues/3837
-    " Purpose:{{{
-    "
-    " Suppose we've just loaded  a buffer in which the visual  marks are not set
-    " anywhere.   We enter  the command-line,  and recall  an old  command which
-    " begins with the visual range  "'<,'>". Because we've set the `'incsearch'`
-    " option, it will raise this error:
-    "
-    "     E20: Mark not set
-    "
-    " It's distracting.
-    "}}}
-    au CmdlineEnter : if !line("'<")
-        \ |     call setpos("'<", [0,line('.'),col('.'),0])
-        \ |     call setpos("'>", [0,line('.'),col('.'),0])
-        \ | endif
-
-    " The previous issue can be triggered by other marks.{{{
-    "
-    "     $ vim -Nu NONE +'set is'
-    "     :'ss/p
-    "
-    " Every time you add a character, `E20` is raised:
-    "
-    "     :'ss/pa
-    "     " E20
-    "     :'ss/pat
-    "     " E20
-    "     ...
-    "
-    " Worse: If you press Escape to quit, the command is saved in the history.
-    " So now, if you try to get back to any command which was saved earlier, you
-    " will have  to visit this  buggy command which  will raise `E20`  again (at
-    " least if you just press `Up` without writing any prefix).
-    "
-    " The  next  function   call  should  fix  this   by  temporarily  resetting
-    " `'incsearch'`, and removing the buggy command from the history.
-    "}}}
-    au CmdlineChanged,CmdlineLeave : call s:fix_e20()
-augroup END
-
-fu s:fix_e20() abort
-    if v:errmsg is# 'E20: Mark not set' && !exists('s:incsearch_save')
-        let v:errmsg = ''
-        let s:incsearch_save = &incsearch
-        set nois
-        au CmdlineLeave : ++once let &is = s:incsearch_save
-            \ | unlet! s:incsearch_save
-            \ | call histdel(':', histget(getcmdline()))
-    endif
-endfu
 

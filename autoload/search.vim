@@ -42,10 +42,8 @@ fu search#hls_after_slash() abort "{{{1
     " Why `search#after_slash_status()`?{{{
     "
     " To disable this part of the autocmd when we do `/ Up CR C-o`.
-    "
-    " TODO: Once  Nvim supports  `state()`,  try to  remove  this function,  and
-    " replace it with `state('m') == ''`.
     "}}}
+    " TODO: Could we replace it with `state('m') == ''`?
     if getcmdline() isnot# '' && search#after_slash_status() == 1
         call search#set_hls()
         " Why `v:errmsg...` ?{{{
@@ -92,31 +90,6 @@ fu search#hls_after_slash() abort "{{{1
 endfu
 
 fu search#index() abort "{{{1
-    " Nvim doesn't support `searchcount()`.{{{
-    "
-    " So instead, we rely on the native feature which is triggered when a search
-    " command is  executed on  the condition  that the `S`  flag is  absent from
-    " `'shm'` (that's the case by default in Nvim).
-    "
-    " But if `'lz'` is set, Nvim doesn't print the index after `n`.
-    " I think that's because the  message should be automatically displayed when
-    " `n` is pressed (via the native  feature).  But at that moment, we're still
-    " in the middle of a mapping, and Nvim doesn't redraw if `'lz'` is set.
-    "
-    " In contrast, Vim doesn't rely on the native feature when `n` is pressed.
-    " Instead, we manually print the message, via an `:echo`.
-    " The latter occurs at the *end* of the mapping, so `'lz'` doesn't cause any
-    " issue.
-    "}}}
-    if has('nvim')
-        if !exists('s:lz_save')
-            let s:lz_save = &lz
-            set nolz
-            exe 'au CursorMoved * ++once let &lz = '..s:lz_save..' | unlet! s:lz_save'
-        endif
-        return ''
-    endif
-
     try
         let result = searchcount({'maxcount': s:MAXCOUNT, 'timeout': s:TIMEOUT})
         let [current, total, incomplete] = [result.current, result.total, result.incomplete]
@@ -192,6 +165,13 @@ fu search#nohls_on_leave()
     augroup END
     " return an empty string, so that the function doesn't insert anything
     return ''
+endfu
+
+fu search#restore_cursor_position() abort "{{{1
+    if exists('s:curpos')
+        call setpos('.', s:curpos)
+        unlet! s:curpos
+    endif
 endfu
 
 fu search#restore_unnamed_register() abort "{{{1
@@ -521,13 +501,6 @@ fu search#wrap_star(seq) abort "{{{1
         \ ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
         \     .."\<plug>(ms_re-enable_after_slash)"
         \     .."\<plug>(ms_custom)"
-endfu
-
-fu search#restore_cursor_position() abort
-    if exists('s:curpos')
-        call setpos('.', s:curpos)
-        unlet! s:curpos
-    endif
 endfu
 
 " Variables {{{1
