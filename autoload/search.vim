@@ -177,7 +177,7 @@ endfu
 fu search#restore_unnamed_register() abort "{{{1
     " restore unnamed register if we've made it mutate
     if exists('s:unnamed_reg_save')
-        call call('setreg', s:unnamed_reg_save)
+        call call('setreg', ['"', s:unnamed_reg_save])
         unlet! s:unnamed_reg_save
     endif
 endfu
@@ -453,11 +453,11 @@ endfu
 
 fu search#wrap_star(seq) abort "{{{1
     let s:curpos = getcurpos()
-    " if the function is invoked from visual mode, it will copy the visual selection,
-    " because `a:seq` begins with the key `y`;
-    " in this case, we save the unnamed register to restore it later
+    " if  the function  is invoked  from visual  mode, it  will yank  the visual
+    " selection, because `a:seq` begins with the  key `y`; in this case, we save
+    " the unnamed register to restore it later
     if mode() =~# "^[vV\<c-v>]$"
-        let s:unnamed_reg_save = ['"', getreg('"'), getregtype('"')]
+        let s:unnamed_reg_save = getreginfo('"')
     endif
 
     " `winline()` returns the position of the current line from the top line of
