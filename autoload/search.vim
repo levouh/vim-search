@@ -177,7 +177,7 @@ endfu
 fu search#restore_unnamed_register() abort "{{{1
     " restore unnamed register if we've made it mutate
     if exists('s:unnamed_reg_save')
-        call call('setreg', ['"', s:unnamed_reg_save])
+        call setreg('"', s:unnamed_reg_save)
         unlet! s:unnamed_reg_save
     endif
 endfu
