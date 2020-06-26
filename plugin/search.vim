@@ -221,15 +221,13 @@ set incsearch
 
 " Autocmds {{{1
 
-augroup my_hls_after_slash | au!
+augroup hls_after_slash | au!
     " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
     " writing a regex.  Not just the next match.  See `:h 'is`.
     " So, we make sure `'hls'` is set when we enter a search command-line.
     au CmdlineEnter /,\? call search#toggle_hls('save')
 
     " Restore the state of `'hls'`.
-    " It if a search has been performed, set it again.
-    " If the search fails, disable it.
     au CmdlineLeave /,\? call search#hls_after_slash()
 augroup END
 

@@ -3,14 +3,6 @@ if exists('g:autoloaded_search')
 endif
 let g:autoloaded_search = 1
 
-fu search#after_slash_status(...) abort "{{{1
-    if a:0
-        unlet! s:after_slash
-        return ''
-    endif
-    return get(s:, 'after_slash', 1)
-endfu
-
 fu search#blink() abort "{{{1
     " every time `search#blink()` is called, we  must reset the keys `ticks` and
     " `delay` in the dictionary `s:blink`
@@ -46,54 +38,51 @@ endfu
 
 fu search#hls_after_slash() abort "{{{1
     call search#toggle_hls('restore')
-    " Why `search#after_slash_status()`?{{{
-    "
-    " To disable this part of the autocmd when we do `/ Up CR C-o`.
-    "}}}
-    " TODO: Could we replace it with `state('m') == ''`?
-    if getcmdline() isnot# '' && search#after_slash_status() == 1
-        call search#set_hls()
-        " Why `v:errmsg...` ?{{{
-        "
-        " Open 2 windows with 2 buffers A and B.
-        " In A, search for a pattern which has a match in B but not in A.
-        " Move the cursor: the highlighting should be disabled in B, but it's not.
-        " This is because Vim stops processing a mapping as soon as an error occurs:
-        "
-        " https://github.com/junegunn/vim-slash/issues/5
-        " `:h map-error`
-        "}}}
-        " Why the timer?{{{
-        "
-        " Because we haven't performed the search yet.
-        " `CmdlineLeave` is fired just before.
-        "}}}
-        " Do *not* move `feedkeys()` outside the timer!{{{
-        "
-        " It could trigger a hit-enter prompt.
-        "
-        " If you move it outside the timer, it will be run unconditionally; even
-        " if the search fails.
-        " And sometimes,  when we  would search  for some  pattern which  is not
-        " matched, Vim could  display 2 messages.  One for the  pattern, and one
-        " for E486:
-        "
-        "     /garbage
-        "     E486: Pattern not found: garbage
-        "
-        " This causes a hit-enter prompt, which is annoying/distracting.
-        " The fed keys don't even seem to matter.
-        " It's hard to reproduce; probably a weird Vim bug...
-        "
-        " Anyway,  after   a  failed  search,   there  is  no  reason   to  feed
-        " `<plug>(ms_custom)`; there  is no  cursor to make  blink, no  index to
-        " print...  It should be fed only if the pattern was found.
-        "}}}
-        call timer_start(0, {->
-            \ v:errmsg[:4] is# 'E486:'
-            \   ? search#nohls(1)
-            \   : mode() =~# '[nv]' ? feedkeys("\<plug>(ms_custom)", 'i') : ''})
+    " don't enable `'hls'` when this function is called because the command-line
+    " was entered from the rhs of a mapping (especially useful for `/ Up CR C-o`)
+    if getcmdline() is# '' || state('m') != ''
+        return
     endif
+    call search#set_hls()
+    " Why `v:errmsg...` ?{{{
+    "
+    " Open 2 windows with 2 buffers A and B.
+    " In A, search for a pattern which has a match in B but not in A.
+    " Move the cursor: the highlighting should be disabled in B, but it's not.
+    " This is because Vim stops processing a mapping as soon as an error occurs:
+    "
+    " https://github.com/junegunn/vim-slash/issues/5
+    " `:h map-error`
+    "}}}
+    " Why the timer?{{{
+    "
+    " Because we haven't performed the search yet.
+    " `CmdlineLeave` is fired just before.
+    "}}}
+    " Do *not* move `feedkeys()` outside the timer!{{{
+    "
+    " It could trigger a hit-enter prompt.
+    "
+    " If you move it outside the timer,  it will be run unconditionally; even if
+    " the search fails.
+    " And sometimes, when we would search for some pattern which is not matched,
+    " Vim could display 2 messages.  One for the pattern, and one for E486:
+    "
+    "     /garbage
+    "     E486: Pattern not found: garbage~
+    "
+    " This causes a hit-enter prompt, which is annoying/distracting.
+    " The fed keys don't even seem to matter.
+    " It's hard to reproduce; probably a weird Vim bug...
+    "
+    " Anyway,   after  a   failed   search,   there  is   no   reason  to   feed
+    " `<plug>(ms_custom)`;  there  is no  cursor  to  make  blink, no  index  to
+    " print...  It should be fed only if the pattern was found.
+    "}}}
+    call timer_start(0, {->
+        \ v:errmsg[:4] is# 'E486:'
+        \   ? search#nohls(1)
+        \   : mode() =~# '[nv]' ? feedkeys("\<plug>(ms_custom)", 'i') : ''})
 endfu
 
 fu search#index() abort "{{{1
@@ -506,11 +495,6 @@ fu search#wrap_star(seq) abort "{{{1
 
     call search#set_hls()
 
-    " We have an autocmd which invokes  `#set_hls()` when we leave the search
-    " command-line.  It needs to be to  temporarily disabled while we type
-    " `/ up cr`, otherwise it would badly interfere.
-    let s:after_slash = 0
-
     " Make sure we're not in a weird state if an error is raised.{{{
     "
     " If we press `*` on nothing, it raises `E348` or `E349`, and Vim highlights
@@ -532,14 +516,9 @@ fu search#wrap_star(seq) abort "{{{1
     " the  cursor (✘).  Press `n`,  then move  the cursor:  the highlighting  is
     " disabled (✔). Now, search for `foo` again: the highlighting is not enabled
     " (✘).
-    "
-    " ---
-    "
-    " Also, make sure to re-enable the invocation of `#set_hls()` after a `/` search.
     "}}}
     call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:\|E486'
         \ ?   search#nohls()
-        \   + execute('let s:after_slash = 1')
         \ :   ''})
 
     " Why `\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)...`?{{{
@@ -559,7 +538,6 @@ fu search#wrap_star(seq) abort "{{{1
     "}}}
     return seq..(mode() !~# "^[vV\<c-v>]$"
         \ ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
-        \     .."\<plug>(ms_re-enable_after_slash)"
         \     .."\<plug>(ms_custom)"
 endfu
 
