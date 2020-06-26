@@ -34,7 +34,14 @@ fu s:delete() abort dict "{{{1
 endfu
 
 fu search#escape(is_fwd) abort "{{{1
-    return '\V'..substitute(escape(@", '\'..(a:is_fwd ? '/' : '?')), "\n", '\\n', 'g')
+    let unnamed = getreg('"', 1, 1)
+    call map(unnamed, {_,v -> escape(v, '\'..(a:is_fwd ? '/' : '?'))})
+    if len(unnamed) == 1
+        let pat = unnamed[0]
+    else
+        let pat = unnamed->join('\n')
+    endif
+    return '\V'..pat
 endfu
 
 fu search#hls_after_slash() abort "{{{1
@@ -99,17 +106,20 @@ fu search#index() abort "{{{1
         return ''
     endtry
     let msg = ''
+    " we don't want a NUL to be translated into a newline when echo'ed as a string;
+    " it would cause an annoying hit-enter prompt
+    let pat = substitute(@/, '\%x00', '^@', 'g')
     if incomplete == 0
         " `printf()`  adds a  padding  of  spaces to  prevent  the pattern  from
         " "dancing" when cycling through many matches by smashing `n`
-        let msg = '['..printf('%*d', len(total), current)..'/'..total..'] '..@/
+        let msg = '['..printf('%*d', len(total), current)..'/'..total..'] '..pat
     elseif incomplete == 1 " recomputing took too much time
-        let msg = '[?/?] '..@/
+        let msg = '[?/?] '..pat
     elseif incomplete == 2 " too many matches
         if result.total == (result.maxcount+1) && result.current <= result.maxcount
-            let msg = '['..printf('%*d', len(total-1), current)..'/>'..(total-1)..'] '..@/
+            let msg = '['..printf('%*d', len(total-1), current)..'/>'..(total-1)..'] '..pat
         else
-            let msg = '[>'..printf('%*d', len(total-1), current-1)..'/>'..(total-1)..'] '..@/
+            let msg = '[>'..printf('%*d', len(total-1), current-1)..'/>'..(total-1)..'] '..pat
         endif
     endif
 
@@ -452,12 +462,42 @@ fu search#wrap_n(is_fwd) abort "{{{1
 endfu
 
 fu search#wrap_star(seq) abort "{{{1
+    let seq = a:seq
     let s:curpos = getcurpos()
     " if  the function  is invoked  from visual  mode, it  will yank  the visual
-    " selection, because `a:seq` begins with the  key `y`; in this case, we save
+    " selection, because  `seq` begins with the  key `y`; in this  case, we save
     " the unnamed register to restore it later
     if mode() =~# "^[vV\<c-v>]$"
         let s:unnamed_reg_save = getreginfo('"')
+        if seq is# '*'
+            " append keys at the end to add some fancy features
+            let seq = "y/\<c-r>\<c-r>=search#escape(1)"
+            "          ││├───────────┘│ {{{
+            "          │││            │
+            "          │││            └ escape unnamed register
+            "          │││
+            "          ││└ insert an expression
+            "          ││  (literally hence why two C-r;
+            "          ││  this matters, e.g., if the selection is "xxx\<c-\>\<c-n>yyy")
+            "          ││
+            "          │└ search for
+            "          │
+            "          └ copy visual selection
+            "}}}
+        elseif seq is# '#'
+            let seq = "y?\<c-r>\<c-r>=search#escape(0)"
+            "                                       │{{{
+            "               direction of the search ┘
+            "
+            " Necessary to  know which  character among  `[/?]` is  special, and
+            " needs to be escaped.
+            "}}}
+        endif
+        let seq ..= "\<plug>(ms_cr)\<plug>(ms_cr)\<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)"
+        "            │             │{{{
+        "            │             └ validate search
+        "            └ validate expression
+        "}}}
     endif
 
     " `winline()` returns the position of the current line from the top line of
@@ -471,13 +511,33 @@ fu search#wrap_star(seq) abort "{{{1
     " `/ up cr`, otherwise it would badly interfere.
     let s:after_slash = 0
 
+    " Make sure we're not in a weird state if an error is raised.{{{
+    "
     " If we press `*` on nothing, it raises `E348` or `E349`, and Vim highlights
-    " last  search  pattern.   But  because  of the  error,  Vim  didn't  finish
-    " processing the mapping.   Therefore, the highlighting is  not cleared when
+    " the last  search pattern.   But because  of the  error, Vim  didn't finish
+    " processing the mapping.  As a result, the highlighting is not cleared when
     " we move the cursor.  Make sure it is.
     "
+    " ---
+    "
+    " Same issue if we press `*` while a block is visually selected:
+    "
+    "     " visually select the block `foo` + `bar`, then press `*`
+    "     foo
+    "     bar
+    "     /\Vfoo\nbar~
+    "     E486: Pattern not found: \Vfoo\nbar~
+    "
+    " Now, search  for `foo`: the highlighting  stays active even after  we move
+    " the  cursor (✘).  Press `n`,  then move  the cursor:  the highlighting  is
+    " disabled (✔). Now, search for `foo` again: the highlighting is not enabled
+    " (✘).
+    "
+    " ---
+    "
     " Also, make sure to re-enable the invocation of `#set_hls()` after a `/` search.
-    call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:'
+    "}}}
+    call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:\|E486'
         \ ?   search#nohls()
         \   + execute('let s:after_slash = 1')
         \ :   ''})
@@ -497,7 +557,7 @@ fu search#wrap_star(seq) abort "{{{1
     " If it causes an issue, we should test the current mode, and add the
     " keys on the last 2 lines only from normal mode.
     "}}}
-    return a:seq..(mode() !~# "^[vV\<c-v>]$"
+    return seq..(mode() !~# "^[vV\<c-v>]$"
         \ ? "\<plug>(ms_slash)\<plug>(ms_up)\<plug>(ms_cr)\<plug>(ms_prev)" : '')
         \     .."\<plug>(ms_re-enable_after_slash)"
         \     .."\<plug>(ms_custom)"

@@ -102,49 +102,8 @@ nmap <expr><silent><unique> g# search#wrap_star('g#')
 " So our implementation of `v_*` and `v_#` doesn't add them.
 "}}}
 
-" FIXME: The plugin may temporarily be broken when you visually select a blockwise text.{{{
-"
-" As an example, select the block `foo` + `bar`, and press `*`:
-"
-"     foo
-"     bar
-"     /\Vfoo\nbar~
-"     E486: Pattern not found: \Vfoo\nbar~
-"     Press ENTER or type command to continue~
-"
-" Now, search  for `foo`: the highlighting  stays active even after  we move the
-" cursor (✘).
-" Press `n`, then move the cursor: the highlighting is disabled (✔).
-" Now, search for `foo` again: the highlighting is not enabled (✘).
-"
-" ---
-"
-" I think the issue is due to  the mapping not being processed entirely, because
-" of the first error.
-"
-" ---
-"
-" For now, one solution is to press `*` on a word in normal mode.
-"}}}
-xmap <expr><silent><unique> * search#wrap_star('y/<c-r><c-r>=search#escape(1)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)<plug>(ms_prev)')
-"                             │                 ││├─────────┘│               │            │{{{
-"                             │                 │││          │               │            └ validate search
-"                             │                 │││          │               │
-"                             │                 │││          │               └ validate expression
-"                             │                 │││          │
-"                             │                 │││          └ escape unnamed register
-"                             │                 │││
-"                             │                 ││└ insert an expression
-"                             │                 ││  (literally hence why two C-r;
-"                             │                 ││  this matters, e.g., if the selection is "xxx\<c-\>\<c-n>yyy")
-"                             │                 ││
-"                             │                 │└ search for
-"                             │                 │
-"                             │                 └ copy visual selection
-"                             │
-"                             └ just append keys at the end to add some fancy features
-"}}}
-
+xmap <expr><silent><unique> * search#wrap_star('*')
+xmap <expr><silent><unique> # search#wrap_star('#')
 " Why?{{{
 "
 " I often press `g*` by accident, thinking it's necessary to avoid that Vim adds
@@ -157,12 +116,6 @@ xmap <expr><silent><unique> * search#wrap_star('y/<c-r><c-r>=search#escape(1)<pl
 " Too distracting.
 "}}}
 xmap g* *
-
-xmap <expr><silent><unique> # search#wrap_star('y?<c-r><c-r>=search#escape(0)<plug>(ms_cr)<plug>(ms_cr)<plug>(ms_restore_unnamed_register)\<plug>(ms_prev)')
-"                                                                          │
-"                                                                          └ direction of the search
-"                                                       necessary to know which character among [/?]
-"                                                       is special, and needs to be escaped
 
 " Customizations (blink, index, ...) {{{2
 
