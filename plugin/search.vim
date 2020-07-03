@@ -1,255 +1,374 @@
-if exists('g:loaded_search')
-    finish
-endif
-let g:loaded_search = 1
+fu! s:wrap(seq) " {{{1
+    if mode() == 'c' && stridx('/?', getcmdtype()) < 0
+        " Command was not a search, return early
+        return a:seq
+    endif
 
-" TODO: Prevent the plugin from highlighting matches after a search run from operator-pending/visual mode.{{{
-"
-" You can't do that right now, because  `mode()` returns `v`, `V`, `^V` when the
-" search command-line  has been entered  from visual mode,  and `c` when  it was
-" entered from operator-pending mode.
-"
-" You need to wait for `mode(1)` to be able to return `c/v` and `c/o` (see `:h todo /c\/o`).
-" More generally,  disable anything fancy  when the search command-line  was not
-" entered from normal mode.
-"}}}
-" TODO: We don't have any mapping in visual mode for `n` and `N`.{{{
-"
-" So, we don't have any count when pressing `n` while in visual mode.  Add a mapping?
-"}}}
+    " Ignore case when comparing, so this will match both forwards
+    " and backwards via "n" and "N"
+    if a:seq ==? 'n' && exists('w:blink_id')
+        call s:match_del()
+    endif
+
+    " Remove the autocommand group that is used to clear search
+    " highlighting, it will be setup again as part of the process
+    " to make it a "one shot" execution
+    silent! autocmd! search
+    set hlsearch
+
+    return a:seq .. "\<plug>(search-trailer)"
+endfu
+
+fu! s:match_del() " {{{1
+    try
+        " Clear the highlighting for the current match,
+        " or at least try to.
+        call matchdelete(get(w:, 'blink_id', -1))
+    catch /E803/
+        " There are cases where this may not be set,
+        " in which case we want to do nothing as the
+        " highlight does not exist in the first place.
+    endtry
+
+    return ''
+endfu
+
+fu! s:highlight_timer() " {{{1
+    " In order to have the highlighting of the current match work
+    " correctly, the call needs to not block as the cursor won't
+    " be in the right position until the right hand side of
+    " the ":h <expr>" mapping is completed.
+    "
+    " ":h timer_start" just sets up a callback, so things do not
+    " run in parallel, but the callback should be executed almost
+    " immediately after the "s:trailer()" method finishes
+    call timer_start(1, {-> s:highlight() })
+endfu
+
+fu! s:highlight(...) " {{{1
+    " The timeout in milliseconds to stop looking for the match
+    let timeout = 30
+    let pos = [line('.'), col('.')]
+
+    " Limit the search to a specific range for performance reasons,
+    " this denotes 25 lines above and 25 lines below
+    let context = 25
+
+    " We could be at the top of the file, so the line number might
+    " be 1 for instance, and subtracting 25 from that would make
+    " it negative, so we need to ensure we don't produce a bad value
+    let top = max([1, pos[0] - context])
+
+    " For the 'stopline' searching downwards, it doesn't matter
+    let bottom = pos[0] + context
+
+    "    ┌ returns a list with the line and column position of the match respectively
+    "    │                ┌ the pattern for the match, i.e. the current search
+    "    │                │    ┌ search backwards
+    "    │                │    │┌ accept match at cursor position
+    "    │                │    ││
+    "    │                │    ││
+    let start = searchpos(@/, 'bc', top, timeout)
+    "                                │         │
+    "                                │         └ timeout in milliseconds
+    "                                └ the line to stop the search at
+
+    if start == [0, 0]
+        " No match found, stop early
+        return ''
+    endif
+
+    "                   ┌ the pattern for the match, i.e. the current search
+    "                   │    ┌ start searching at the cursor position
+    "                   │    │┌ allow a match at the cursor position
+    "                   │    ││┌ move to the end of the match
+    "                   │    │││┌ do not move the cursor
+    "                   │    ││││
+    let end = searchpos(@/, 'zcen', bottom, timeout)
+    "                                  │       │
+    "                                  │       └ timeout in milliseconds
+    "                                  └ the line to stop the search at
+
+    if end == [0, 0]
+        " No match found, stop early
+        return ''
+    endif
+
+    " Determine whether or not we are currently inside a match based on the start and end positions of the match
+    " as found above
+    "               ┌ on or past line     ┌ on or past column   ┌ on or before line ┌ on or before column
+    "               │ start               │ start               │ end               │ end
+    "               ├────────────────┐    ├────────────────┐    ├──────────────┐    ├──────────────┐
+    let is_inside = pos[0] >= start[0] && pos[1] >= start[1] && pos[0] <= end[0] && pos[1] <= end[1]
+
+    if is_inside
+        "           ┌ use magic, although it seems like "matchadd()" will do this by default
+        "           │ ┌ a number will follow this, so this is searching in the line
+        "           │ │ specified by the number that follows it
+        "           │ │       ┌ the line to search on, see ":h /ordinary-atom"
+        "           │ │       │        ┌ specify the 'l'ine
+        "           │ │       │        │
+        let pat = '\m\%' . start[0] . 'l\%' . start[1] . 'c'
+        "                                │       │        │
+        "                                │       │        └ specify the 'c'olumn
+        "                                │       └ column from "searchpos()"
+        "                                └ same idea as line, but specify the column
+
+        if start != end
+            "    ┌ do the same as above, but continue towards the end of the line
+            "    │                                            ┌ small nuance here is to not match end-of-line
+            "    │                                            │
+            let pat .= '\_.*\%' . end[0] . 'l\%' . end[1] . 'c.'
+        endif
+
+        " Use the pattern to highlight the current match properly
+        "
+        "                                             ┌ specifies the priority versus other highlight groups
+        "                                             │
+        let w:blink_id = matchadd('IncSearch', pat, 1000, get(w:, 'blink_id', -1))
+        "                                                                      │
+        "                                                                      └ use the next free ID if none have been found
+    endif
+
+    return ''
+endfunction
+
+
+fu! s:immobile(seq) " {{{1
+    " Adds map to call a function that essentially runs
+    " "``" if the mapping should be "immobile", meaning
+    " that the cursor won't move when the command is issued.
+    " List of position information for the cursor.
+    let s:pos = getpos('.')
+
+    " Mentioned above, add mapping to expression sequence
+    " that actually performs "immobile" functionality.
+    return a:seq .. "\<plug>(search-prev)"
+endfu
+
+fu! s:trailer() " {{{1
+    " This function is called after the main functionality
+    " is performed, so for example the "n" key will have
+    " already been pressed.
+    "
+    " Open folds if inside of one.
+    let seq = foldclosed('.') != -1 ? 'zv' : ''
+
+    " See if the user has any mappings to be performed after the search
+    " is done, if so, tack them on the the end of this chain
+    let after = len(maparg("<plug>(search-after)", mode())) ? "\<plug>(search-after)" : ''
+
+    " Show a count of the current search match out of a total count
+    let search_count = "\<plug>(search-count)"
+
+    " Highlighting the current match uses the "e" argument to find the end of the match,
+    " which will move the cursor, causing the "search" autocommand group to trigger too
+    " early. This needs to go after the "<plug>(search-hl)" mapping as a result.
+    let clear_group = "\<plug>(search-clear)"
+
+    " Setup callback to highlight the current match
+    call s:highlight_timer()
+
+    return seq .. search_count .. clear_group .. after
+endfu
+
+fu! s:search_count() " {{{1
+    " The max number of matches for ":h searchcount()"
+    let maxcount = 1000
+
+    " Timeout before ":h searchcount()" stops searching
+    let timeout = 500
+
+    try
+        let result = searchcount({'maxcount': maxcount, 'timeout': timeout})
+        let [current, total, incomplete] = [result.current, result.total, result.incomplete]
+    catch
+        " In case the pattern is invalid (`E54`, `E55`, `E871`, ...)
+        echohl ErrorMsg | echom v:exception | echohl NONE
+
+        return ''
+    endtry
+
+    let msg = ''
+
+    " We don't want a NUL to be translated into a newline when echo'ed as a string;
+    " it would cause an annoying hit-enter prompt
+    let pat = substitute(@/, '\%x00', '^@', 'g')
+
+    if incomplete == 0
+        " ":h printf()"  adds a  padding  of  spaces to  prevent  the pattern  from
+        " "dancing" when cycling through many matches by smashing `n`
+        let msg = pat .. ' [' .. printf('%*d', len(total), current) .. '/' .. total .. ']'
+    elseif incomplete == 1 " Recomputing took too much time
+        let msg = pat .. ' [?/?]'
+    elseif incomplete == 2 " Too many matches
+        if result.total == (result.maxcount+1) && result.current <= result.maxcount
+            let msg = pat .. ' [' .. printf('%*d', len(total - 1), current) .. '/>' .. (total - 1) .. ']'
+        else
+            let msg = pat .. ' [>' .. printf('%*d', len(total - 1), current - 1) .. '/>' .. (total - 1) .. ']'
+        endif
+    endif
+
+    " We don't want a hit-enter prompt when the message is too long.
+    "
+    " Let's emulate what Vim does by default:
+    "
+    "    - Cut the message in 2 halves
+    "    - Truncate the end of the 1st half, and the start of the 2nd one
+    "    - Join the 2 halves with `...` in the middle
+    "
+    if strchars(msg, 1) > (v:echospace + (&cmdheight - 1)*&columns)
+    "                      ├─────────┘   ├─────────────────────┘
+    "                      │             └ space available on previous lines of the command-line
+    "                      └ space available on last line of the command-line
+    "
+        let n = v:echospace - 3
+        "                     │
+        "                     └ for the middle '...'
+
+        let [n1, n2] = n%2 ? [n/2, n/2] : [n/2-1, n/2]
+        let msg = join(matchlist(msg, '\(.\{' .. n1 .. '}\).*\(.\{' .. n2 .. '}\)')[1:2], '...')
+    endif
+
+    echo msg
+
+    return ''
+endfu
+
+fu! s:clear_augroup() " {{{1
+    " This function sets up a one-time autocommand when the
+    " window focus changes or the cursor moves to ensure that
+    " the ":h hlsearch" is turned off, and the highlighting,
+    " set above, is cleared.
+    augroup search | au!
+        au CursorMoved,CursorMovedI * set nohlsearch | call <sid>match_del() | autocmd! search
+    augroup END
+
+    return ''
+endfu
+
+fu! s:trailer_on_leave() " {{{1
+    augroup search | au!
+        au InsertLeave * call <sid>trailer()
+    augroup END
+
+    return ''
+endfu
+
+fu! s:prev() " {{{1
+    " In order to maintain the cursor position when searching, issue the "normal" command
+    " first, like "n". Vim will read this and move forward to the next match for things
+    " like "*" as it normally would, but instead, hop backwards to the match where the
+    " command started to make it "immobile".
+    "
+    " This is done by executing "``", which will jump backwards to the previous cursor
+    " position, achieving this effect.
+    return getpos('.') == s:pos ? '' : '``'
+endfu
+
+fu! s:escape(backward) " {{{1
+    " If searching backwards, the "command" will change
+    let search_cmd = '\' .. (a:backward ? '?' : '/')
+
+    "       ┌ only "\", "/", or "?" are treated as special characters
+    "       │
+    "       │                        ┌ escape backslashes that occur in the '"'
+    "       │                        │ register that is forming the search
+    "       │                        │
+    return '\V' .. substitute(escape(@", search_cmd), "\n", '\\n', 'g')
+    "                                                   │           │
+    "                             do the same with "\n" ┘           └ replace all matches
+endfu
 
 " Mappings {{{1
-" Disable unwanted recursivity {{{2
-
-" We remap the following keys *recursively*:
+" Setting up ":h using-<Plug>" mappings here is not completely
+" necessary, but because a lot of these are used multiple times
+" it is easier to just have a simple name for them.
 "
-"     CR
-"     n N
-"     * #
-"     g* g#
-"     gd gD
+" Called after the wrapped action is performed to do things
+" like setup search count, start the highlight timer, etc.
+map <expr> <Plug>(search-trailer) <SID>trailer()
+
+" Count the number of matches for the current search item,
+" and echo them in the command-line along with the search
+" text.
 "
-" Each time, we use a wrapper in the rhs.
+" These will be displayed like "term [X/X]"
+map <expr> <Plug>(search-count) <SID>search_count()
+
+" In order to have the highlighting of the current match work
+" correctly, the call needs to not block as the cursor won't
+" be in the right position until the right hand side of
+" the ":h <expr>" mapping is completed.
 "
-" Any key returned by a wrapper will be remapped.
-" We want this remapping, but only for `<plug>(...)` keys.
-" For anything else, remapping should be forbidden.
-" So, we  install non-recursive mappings for  various keys we may  return in our
-" wrappers.
+" ":h timer_start" just sets up a callback, so things do not
+" run in parallel, but the callback should be executed almost
+" immediately after the "s:trailer()" method finishes
+map <expr> <Plug>(search-hl) <SID>highlight_timer()
 
-cno <plug>(ms_cr)    <cr>
-cno <plug>(ms_up)    <up>
-nno <plug>(ms_slash) /
-nno <plug>(ms_n)     n
-nno <plug>(ms_N)     N
-nno <silent> <plug>(ms_prev) :<c-u>call search#restore_cursor_position()<cr>
+" This function sets up a one-time autocommand when the
+" window focus changes or the cursor moves to ensure that
+" the ":h hlsearch" is turned off, and the highlighting,
+" set above, is cleared.
+map <expr> <Plug>(search-clear) <SID>clear_augroup()
 
-" CR  gd  n {{{2
-
-" Note:
-" Don't add `<silent>` to the next mapping.
-" When we search for a pattern which has no match in the current buffer,
-" the combination of `set shm+=s` and `<silent>`, would make Vim display the
-" search command, which would cause 2 messages to be displayed + a prompt:
+" This one does the same as above, but it deals more with
+" entering/exiting insert mode.
 "
-"     /garbage
-"     E486: Pattern not found: garbage
-"     Press ENTER or type command to continue
+" This was initially setup as a part of "vim-slash", but
+" I'm not entirely sure when exactly it is used.
+imap <expr> <Plug>(search-trailer) <SID>trailer_on_leave()
+
+" A simple press of the enter key, use a ":h <Plug>"
+" mapping to avoid conflicts and for conistency.
+cnoremap <Plug>(search-cr) <CR>
+
+" Calls a function that essentially just runs "``" if
+" the mapping should be "immobile", meaning that the
+" cursor won't move when the command is issued.
 "
-" Without `<silent>`, Vim behaves as expected:
+" Normally, when using something like "*", Vim will
+" automatically jump to the next match, but this will
+" just highlight the current match instead.
+noremap <expr> <Plug>(search-prev) <SID>prev()
+
+" Things can happen from insert mode as well, and in that
+" case we don't want to insert "``" unecessarily.
+inoremap <Plug>(search-prev) <nop>
+
+" Map this for the commandline, so that when the enter key
+" is pressed to finish a search, the "s:trailer()" method
+" can be called afterwards.
 "
-"     E486: Pattern not found: garbage
+" This will not happen for every single thing done from the
+" commandline, done by checking ":h getcmdtype()".
+cmap <expr> <CR> <SID>wrap("\<CR>")
 
-augroup ms_cmdwin | au!
-  au CmdWinEnter * if getcmdwintype() =~ '[/?]'
-               \ |     nmap <buffer><nowait> <cr> <cr><plug>(ms_index)
-               \ | endif
-augroup END
+" Wrap simple search-related commands.
+map  <expr> n    <SID>wrap('n')
+map  <expr> N    <SID>wrap('N')
+map  <expr> gd   <SID>wrap('gd')
+map  <expr> gD   <SID>wrap('gD')
 
-nmap <expr><unique> gd search#wrap_gd(1)
-nmap <expr><unique> gD search#wrap_gd(0)
+" These are deemed "immobile", meaning that the cursor won't
+" be moved immediately when the command is issued like it would
+" as a part of normal Vim behavior.
+map  <expr> *    <SID>wrap(<SID>immobile('*'))
+map  <expr> #    <SID>wrap(<SID>immobile('#'))
+map  <expr> g*   <SID>wrap(<SID>immobile('g*'))
+map  <expr> g#   <SID>wrap(<SID>immobile('g#'))
 
-nmap <expr><unique> n search#wrap_n(1)
-nmap <expr><unique> N search#wrap_n(0)
-
-" Star &friends {{{2
-
-" By default,  you can search automatically  for the word under  the cursor with
-" `*` or `#`. But you can't do the same for the text visually selected.
-" The following mappings work  in normal mode, but also in  visual mode, to fill
-" that gap.
+" In order to allow larger visual selections, add some extra
+" logic to first yank the visual selection, and then paste
+" it into the command line to allow it to be searched.
 "
-" `<silent>` is useful to avoid `/ pattern CR` to display a brief message on
-" the command-line.
-nmap <expr><silent><unique> * search#wrap_star('*')
-"                             │
-"                             └ * C-o
-"                               / Up CR C-o
-"                               <plug>(ms_nohls)
-"                               <plug>(ms_view)  ⇔  {number} C-e / C-y
-"                               <plug>(ms_blink)
-"                               <plug>(ms_index)
-
-nmap <expr><silent><unique> #  search#wrap_star('#')
-nmap <expr><silent><unique> g* search#wrap_star('g*')
-nmap <expr><silent><unique> g# search#wrap_star('g#')
-" Why don't we implement `g*` and `g#` mappings?{{{
-"
-" If we search a visual selection, we probably don't want to add the anchors:
-"
-"     \< \>
-"
-" So our implementation of `v_*` and `v_#` doesn't add them.
-"}}}
-
-xmap <expr><silent><unique> * search#wrap_star('*')
-xmap <expr><silent><unique> # search#wrap_star('#')
-" Why?{{{
-"
-" I often press `g*` by accident, thinking it's necessary to avoid that Vim adds
-" anchors.
-" In reality, it's useless, because Vim doesn't add anchors.
-" `g*` is not a default visual command.
-" It's interpreted as a motion which moves the end of the visual selection to the
-" next occurrence of the word below the cursor.
-" This can result in a big visual selection spanning across several windows.
-" Too distracting.
-"}}}
-xmap g* *
-
-" Customizations (blink, index, ...) {{{2
-
-nno <expr> <plug>(ms_restore_unnamed_register) search#restore_unnamed_register()
-
-" This mapping  is used in `search#wrap_star()` to reenable  our autocmd after a
-" search via star &friends.
-nno <expr> <plug>(ms_re-enable_after_slash) search#after_slash_status('delete')
-
-nno <expr> <plug>(ms_view) search#view()
-
-nno <expr> <plug>(ms_blink) search#blink()
-nno <expr> <plug>(ms_nohls) search#nohls()
-" Why don't you just remove the `S` flag from `'shm'`?{{{
-"
-" Because of 2 limitations.
-" You can't position the indicator on the command-line (it's at the far right).
-" You can't get the index of a match beyond 99:
-"
-"     /pat    [1/>99]   1
-"     /pat    [2/>99]   2
-"     /pat    [3/>99]   3
-"     ...
-"     /pat    [99/>99]  99
-"     /pat    [99/>99]  100
-"     /pat    [99/>99]  101
-"
-" And because of 1 pitfall: the count is not always visible.
-"
-" In the case of `*`, you won't see it at all.
-" In the case of `n`, you will see it, but if you enter the command-line
-" and leave it, you won't see the count anymore when pressing `n`.
-" The issue is due to Vim which does not redraw enough when `'lz'` is set.
-"
-" MWE:
-"
-"     $ vim -Nu <(cat <<'EOF'
-"         set lz
-"         nmap n <plug>(a)<plug>(b)
-"         nno <plug>(a) n
-"         nno <plug>(b) <nop>
-"     EOF
-"     ) ~/.zshrc
-"
-" Search for  `the`, then press  `n` a  few times: the  cursor does not  seem to
-" move.  In reality,  it does move, but  you don't see it because  the screen is
-" not redrawn enough; press `C-l`, and you should see it has correctly moved.
-"
-" It think that's because  when `'lz'` is set, Vim doesn't  redraw in the middle
-" of a mapping.
-"
-" In any case, all these issues stem from a lack of control:
-"
-"    - we can't control the maximum count of matches
-"    - we can't control *where* to display the info
-"    - we can't control *when* to display the info
-"}}}
-nno <expr> <plug>(ms_index) search#index()
-
-" Regroup all customizations behind `<plug>(ms_custom)`
-"                             ┌ install a one-shot autocmd to disable 'hls' when we move
-"                             │               ┌ unfold if needed, restore the view after `*` &friends
-"                             │               │
-nmap <plug>(ms_custom) <plug>(ms_nohls)<plug>(ms_view)<plug>(ms_blink)<plug>(ms_index)
-"                                                            │               │
-"                               make the current match blink ┘               │
-"                                            print `[12/34]` kind of message ┘
-
-" We need this mapping for when we leave the search command-line from visual mode.
-xno <expr> <plug>(ms_custom) search#nohls()
-
-" Without the next mappings, we face this issue:{{{
-"
-" https://github.com/junegunn/vim-slash/issues/4
-"
-"     c /pattern CR
-"
-" ... inserts  a succession of literal  `<plug>(...)` strings in the  buffer, in
-" front of `pattern`.
-" The problem comes from the wrong assumption that after a `/` search, we are in
-" normal mode. We could also be in insert mode.
-"}}}
-" Why don't you disable `<plug>(ms_nohls)`?{{{
-"
-" Because the  search in  `c /pattern  CR` has  enabled `'hls'`,  so we  need to
-" disable it.
-"}}}
-ino <silent> <plug>(ms_nohls) <c-r>=search#nohls_on_leave()<cr>
-ino          <plug>(ms_index) <nop>
-ino          <plug>(ms_blink) <nop>
-ino          <plug>(ms_view)  <nop>
-" }}}1
-" Options {{{1
-
-" ignore the case when searching for a pattern containing only lowercase characters
-set ignorecase
-
-" but don't ignore the case if it contains an uppercase character
-set smartcase
-
-" incremental search
-set incsearch
-
-" Autocmds {{{1
-
-augroup hls_after_slash | au!
-augroup my_hls_after_slash | au!
-    " The ID of the highlight for the current match is stored in a window-local
-    " variable, so this _has_ to be ":h WinLeave" instead of other window
-    " autocommands. This feels natural based on the other functionality as
-    " the match is removed whenever cursor moves, which technically happens
-    " when window focus changes.
-    au WinLeave * call search#match_del()
-
-    " If `'hls'` and `'is'` are set, then *all* matches are highlighted when we're
-    " writing a regex.  Not just the next match.  See `:h 'is`.
-    " So, we make sure `'hls'` is set when we enter a search command-line.
-    au CmdlineEnter /,\? call search#toggle_hls('save')
-
-    " Restore the state of `'hls'`.
-    au CmdlineLeave /,\? call search#hls_after_slash()
-augroup END
-
-augroup hoist_noic | au!
-    " Why an indicator for the `'ignorecase'` option?{{{
-    "
-    " Recently, it  was temporarily  reset by  `$VIMRUNTIME/indent/vim.vim`, but
-    " was not properly set again.
-    " We should be  immediately informed when that happens,  because this option
-    " has many effects;  e.g. when reset, we can't tab  complete custom commands
-    " written in lowercase.
-    "}}}
-    au User MyFlags call statusline#hoist('global', '%2*%{!&ic? "[noic]" : ""}', 17,
-        \ expand('<sfile>')..':'..expand('<sflnum>'))
-    au OptionSet ignorecase call timer_start(0, {-> execute('redrawt')})
-augroup END
-
+"                                         ┌ yank the visual selection into the '"' register
+"                                         │    ┌ insert the contents of a register
+"                                         │    │  ┌ use expression register to allow
+"                                         │    │  │ inserting of a particular expression
+"                                         │    │  │
+xmap <expr> *    <SID>wrap(<SID>immobile("y/\<C-r>=<SID>escape(0)\<Plug>(search-cr)\<Plug>(search-cr)"))
+"                                                           │             │                │
+"                      escape necessary characters based on │             │                └ complete search
+"                                          search direction ┘             └ complete expression
+xmap <expr> #    <SID>wrap(<SID>immobile("y?\<C-r>=<SID>escape(1)\<Plug>(search-cr)\<Plug>(search-cr)"))
