@@ -241,7 +241,7 @@ fu! s:clear_augroup() " {{{1
     " the ":h hlsearch" is turned off, and the highlighting,
     " set above, is cleared.
     augroup search | au!
-        au CursorMoved,CursorMovedI * set nohlsearch | call <sid>match_del() | autocmd! search
+        au CursorMoved,CursorMovedI,CmdLineEnter * set nohlsearch | call <sid>match_del() | autocmd! search
     augroup END
 
     return ''
