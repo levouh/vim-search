@@ -24,7 +24,7 @@ fu! s:match_del() " {{{1
         " Clear the highlighting for the current match,
         " or at least try to.
         call matchdelete(get(w:, 'blink_id', -1))
-    catch /E803/
+    catch
         " There are cases where this may not be set,
         " in which case we want to do nothing as the
         " highlight does not exist in the first place.
