@@ -164,12 +164,12 @@ fu! s:trailer() " {{{1
     " Highlighting the current match uses the "e" argument to find the end of the match,
     " which will move the cursor, causing the "search" autocommand group to trigger too
     " early. This needs to go after the "<plug>(search-hl)" mapping as a result.
-    let clear_group = "\<plug>(search-clear)"
+    let search_au = "\<plug>(search-au)"
 
     " Setup callback to highlight the current match
     call s:highlight_timer()
 
-    return seq .. search_count .. clear_group .. after
+    return seq .. search_count .. search_au .. after
 endfu
 
 fu! s:search_count() " {{{1
@@ -235,13 +235,13 @@ fu! s:search_count() " {{{1
     return ''
 endfu
 
-fu! s:clear_augroup() " {{{1
+fu! s:setup_au() " {{{1
     " This function sets up a one-time autocommand when the
     " window focus changes or the cursor moves to ensure that
     " the ":h hlsearch" is turned off, and the highlighting,
     " set above, is cleared.
     augroup search | au!
-        au CursorMoved,CursorMovedI,CmdLineEnter * set nohlsearch | call <sid>match_del() | autocmd! search
+        au CursorMoved,CursorMovedI,CmdLineEnter,WinLeave * set nohlsearch | call <sid>match_del() | autocmd! search
     augroup END
 
     return ''
@@ -310,7 +310,7 @@ map <expr> <Plug>(search-hl) <SID>highlight_timer()
 " window focus changes or the cursor moves to ensure that
 " the ":h hlsearch" is turned off, and the highlighting,
 " set above, is cleared.
-map <expr> <Plug>(search-clear) <SID>clear_augroup()
+map <expr> <Plug>(search-au) <SID>setup_au()
 
 " This one does the same as above, but it deals more with
 " entering/exiting insert mode.
