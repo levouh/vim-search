@@ -6,7 +6,7 @@ fu! s:wrap(seq) " {{{1
 
     " Ignore case when comparing, so this will match both forwards
     " and backwards via "n" and "N"
-    if a:seq ==? 'n' && exists('w:blink_id')
+    if exists('w:blink_id')
         call s:match_del()
     endif
 
