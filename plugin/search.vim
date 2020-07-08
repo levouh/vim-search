@@ -4,8 +4,7 @@ fu! s:wrap(seq) " {{{1
         return a:seq
     endif
 
-    " Ignore case when comparing, so this will match both forwards
-    " and backwards via "n" and "N"
+    " Remove current search match highlighting if it exists
     if exists('w:blink_id')
         call s:match_del()
     endif
