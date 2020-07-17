@@ -1,6 +1,18 @@
 fu! s:wrap(seq) " {{{1
-    if mode() == 'c' && stridx('/?', getcmdtype()) < 0
-        " Command was not a search, return early
+    " Command is search, or empty, all other return values
+    " from ":h getcmdtype()" should be skipped
+    let valid_cmd = getcmdtype() =~ '/\|?\|^$'
+    "                                │  │   │
+    "                                │  │   └ empty, so no command
+    "                                │  └ backward search
+    "                 forward search ┘
+
+    " Only accept options from normal, visual, and command mode
+    let valid_mode = mode() =~ '[cnv]'
+
+    if !valid_mode || !valid_cmd
+        " Not an action that should be handled by this plugin,
+        " so return early
         return a:seq
     endif
 
