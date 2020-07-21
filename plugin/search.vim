@@ -291,6 +291,98 @@ fu! s:escape(backward) " {{{1
     "                             do the same with "\n" ┘           └ replace all matches
 endfu
 
+fu! s:toggle_hls(action) abort " {{{1
+    " Passed is an action that denotes what action to take with regards to
+    " the value of ":h hls".
+    "
+    " If the passed value is 'save', then save off the value and turn on
+    " 'hls'
+    if a:action is# 'save'
+        let s:hls_on = &hls
+        set hlsearch
+    elseif a:action is# 'restore'
+        if exists('s:hls_on')
+            " Form a string based on the saved value to set the value of
+            " 'hls' to the opposite
+            exe 'set ' .. (s:hls_on ? '' : 'no')..'hls'
+
+            " Remove the saved value
+            unlet! s:hls_on
+        endif
+    endif
+endfu
+
+fu! s:hls_after_slash() abort " {{{1
+    " Restore whatever the saved value is
+    call s:toggle_hls('restore')
+
+    " Don't enable 'hls' when this function is called because the command-line
+    " was entered from the rhs of a mapping (especially useful for `/ Up CR C-o`)
+    if getcmdline() is# '' || state() =~# 'm'
+        return
+    endif
+
+    " Turn it back on now
+    silent! autocmd! search
+    set hlsearch
+
+    " Why `v:errmsg...` ?{{{
+    "
+    " Open 2 windows with 2 buffers A and B.
+    " In A, search for a pattern which has a match in B but not in A.
+    " Move the cursor: the highlighting should be disabled in B, but it's not.
+    " This is because Vim stops processing a mapping as soon as an error occurs:
+    "
+    " https://github.com/junegunn/vim-slash/issues/5
+    " `:h map-error`
+    "}}}
+    " Why the timer?{{{
+    "
+    " Because we haven't performed the search yet.
+    " `CmdlineLeave` is fired just before.
+    "}}}
+    "   Why not a one-shot autocmd listening to `SafeState`?{{{
+    "
+    " Too early.  If the match is beyond the current screen, Vim will redraw the
+    " latter, and – in the process – erase the message.
+    "}}}
+    " Do *not* move `feedkeys()` outside the timer!{{{
+    "
+    " It could trigger a hit-enter prompt.
+    "
+    " If you move it outside the timer,  it will be run unconditionally; even if
+    " the search fails.
+    " And sometimes, when we would search for some pattern which is not matched,
+    " Vim could display 2 messages.  One for the pattern, and one for E486:
+    "
+    "     /garbage
+    "     E486: Pattern not found: garbage~
+    "
+    " This causes a hit-enter prompt, which is annoying/distracting.
+    " The fed keys don't even seem to matter.
+    " It's hard to reproduce; probably a weird Vim bug...
+    "
+    " Anyway,   after  a   failed   search,   there  is   no   reason  to   feed
+    " `<plug>(ms_custom)`;  there  is no  cursor  to  make  blink, no  index  to
+    " print...  It should be fed only if the pattern was found.
+    "}}}
+    call timer_start(0, {->
+        \ v:errmsg[:4] is# 'E486:'
+        \   ? search#nohls(1)
+        \   : mode() =~# '[nv]' ? feedkeys("\<Plug>(search-visleave)", 'i') : 0})
+endfu
+
+augroup cmd_hls | au!
+    " If 'hls' and 'is' are set, then _all_ matches are highlighted when we're
+    " writing a regex, not just the next match noted in ":h is".
+    "
+    " First save the value as it is set
+    au CmdlineEnter /,\? call <SID>toggle_hls('save')
+
+    " And now restore it
+    au CmdlineLeave /,\? call <SID>hls_after_slash()
+augroup END
+
 " Mappings {{{1
 " Setting up ":h using-<Plug>" mappings here is not completely
 " necessary, but because a lot of these are used multiple times
@@ -383,3 +475,6 @@ xmap <expr> *    <SID>wrap(<SID>immobile("y/\<C-r>=<SID>escape(0)\<Plug>(search-
 "                      escape necessary characters based on │             │                └ complete search
 "                                          search direction ┘             └ complete expression
 xmap <expr> #    <SID>wrap(<SID>immobile("y?\<C-r>=<SID>escape(1)\<Plug>(search-cr)\<Plug>(search-cr)"))
+
+" We need this mapping for when we leave the search command-line from visual mode.
+xno <expr> <plug>(search-visleave) search#nohls()
