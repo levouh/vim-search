@@ -16,11 +16,6 @@ fu! s:wrap(seq) " {{{1
         return a:seq
     endif
 
-    " Remove current search match highlighting if it exists
-    if exists('w:blink_id')
-        call s:match_del()
-    endif
-
     " Remove the autocommand group that is used to clear search
     " highlighting, it will be setup again as part of the process
     " to make it a "one shot" execution
@@ -34,6 +29,10 @@ fu! s:match_del() " {{{1
     try
         " Clear the highlighting for the current match,
         " or at least try to.
+        "
+        " Only one match should be highlighted at any given
+        " time, so don't delete the window-local variable,
+        " just delete the match associated with it
         call matchdelete(get(w:, 'blink_id', -1))
     catch
         " There are cases where this may not be set,
@@ -44,7 +43,7 @@ fu! s:match_del() " {{{1
     return ''
 endfu
 
-fu! s:highlight_timer() " {{{1
+fu! s:highlight_timer() abort " {{{1
     " In order to have the highlighting of the current match work
     " correctly, the call needs to not block as the cursor won't
     " be in the right position until the right hand side of
@@ -56,7 +55,7 @@ fu! s:highlight_timer() " {{{1
     call timer_start(1, {-> s:highlight() })
 endfu
 
-fu! s:highlight(...) " {{{1
+fu! s:highlight(...) abort " {{{1
     " The timeout in milliseconds to stop looking for the match
     let timeout = 30
     let pos = [line('.'), col('.')]
@@ -130,6 +129,11 @@ fu! s:highlight(...) " {{{1
             "    │                                            ┌ small nuance here is to not match end-of-line
             "    │                                            │
             let pat .= '\_.*\%' . end[0] . 'l\%' . end[1] . 'c.'
+        endif
+
+        if get(w:, 'blink_id', v:none) isnot# v:none
+            " A highlight for the current window already exists, remove it
+            call s:match_del()
         endif
 
         " Use the pattern to highlight the current match properly
@@ -246,13 +250,21 @@ fu! s:search_count() " {{{1
     return ''
 endfu
 
-fu! s:setup_au() " {{{1
+fu! s:setup_au(...) " {{{1
     " This function sets up a one-time autocommand when the
     " window focus changes or the cursor moves to ensure that
     " the ":h hlsearch" is turned off, and the highlighting,
     " set above, is cleared.
     augroup search | au!
-        au CursorMoved,CursorMovedI,CmdLineEnter,WinLeave * set nohlsearch | call <sid>match_del() | autocmd! search
+        au CursorMoved,CursorMovedI,CmdLineEnter,WinLeave * set nohlsearch | call <SID>match_del() | autocmd! search
+
+        " Necessary when a search fails (`E486`), and we search for another pattern right afterward. {{{
+        "
+        " Otherwise, if there is no cursor  motion between the two searches, and
+        " the second one succeeds, the cursor does not blink. }}}
+        if a:0
+            au CmdlineEnter * exe 'au! search' | aug! search | set nohls
+        endif
     augroup END
 
     return ''
@@ -368,7 +380,7 @@ fu! s:hls_after_slash() abort " {{{1
     "}}}
     call timer_start(0, {->
         \ v:errmsg[:4] is# 'E486:'
-        \   ? search#nohls(1)
+        \   ? <SID>setup_au(1)
         \   : mode() =~# '[nv]' ? feedkeys("\<Plug>(search-visleave)", 'i') : 0})
 endfu
 
