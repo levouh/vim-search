@@ -165,13 +165,6 @@ fu! s:trailer() " {{{1
     " This function is called after the main functionality
     " is performed, so for example the "n" key will have
     " already been pressed.
-    "
-    " Open folds if inside of one.
-    let seq = foldclosed('.') != -1 ? 'zv' : ''
-
-    " See if the user has any mappings to be performed after the search
-    " is done, if so, tack them on the the end of this chain
-    let after = len(maparg("<plug>(search-after)", mode())) ? "\<plug>(search-after)" : ''
 
     " Show a count of the current search match out of a total count
     let search_count = "\<plug>(search-count)"
@@ -181,10 +174,22 @@ fu! s:trailer() " {{{1
     " early. This needs to go after the "<plug>(search-hl)" mapping as a result.
     let search_au = "\<plug>(search-au)"
 
+    " Setup/restore a view when searching that includes opening/closing folds, etc.
+    let view_restore = "\<plug>(search-view)"
+
     " Setup callback to highlight the current match
     call s:highlight_timer()
 
-    return seq .. search_count .. search_au .. after
+    return search_count .. search_au .. view_restore
+endfu
+
+fu! s:view() abort "{{{1
+    " Make a nice view, by opening folds if any, and by restoring the view if
+    " it changed but we wanted to stay where we were (happens with `*` & friends)
+
+    let seq = foldclosed('.') != -1 ? 'zMzv' : ''
+
+    return seq
 endfu
 
 fu! s:search_count() " {{{1
@@ -426,6 +431,10 @@ map <expr> <Plug>(search-hl) <SID>highlight_timer()
 " the ":h hlsearch" is turned off, and the highlighting,
 " set above, is cleared.
 map <expr> <Plug>(search-au) <SID>setup_au()
+
+" Save/restore the view when moving between search matches
+" which includes opening/closing folds, etc.
+nmap <expr> <Plug>(search-view) <SID>view()
 
 " This one does the same as above, but it deals more with
 " entering/exiting insert mode.
