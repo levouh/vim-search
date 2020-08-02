@@ -1,3 +1,5 @@
+let g:_test = []
+
 fu! s:wrap(seq) " {{{1
     " Command is search, or empty, all other return values
     " from ":h getcmdtype()" should be skipped
@@ -34,6 +36,7 @@ fu! s:match_del() " {{{1
         " time, so don't delete the window-local variable,
         " just delete the match associated with it
         call matchdelete(get(w:, 'blink_id', -1))
+        unlet w:blink_id
     catch
         " There are cases where this may not be set,
         " in which case we want to do nothing as the
@@ -308,96 +311,30 @@ fu! s:escape(backward) " {{{1
     "                             do the same with "\n" ┘           └ replace all matches
 endfu
 
-fu! s:toggle_hls(action) abort " {{{1
-    " Passed is an action that denotes what action to take with regards to
-    " the value of ":h hls".
-    "
-    " If the passed value is 'save', then save off the value and turn on
-    " 'hls'
-    if a:action is# 'save'
-        let s:hls_on = &hls
-        set hlsearch
-    elseif a:action is# 'restore'
-        if exists('s:hls_on')
-            " Form a string based on the saved value to set the value of
-            " 'hls' to the opposite
-            exe 'set ' .. (s:hls_on ? '' : 'no')..'hls'
+fu! s:after_slash() abort " {{{1
+    if getcmdline() is# ''
+        " Don't enable 'hls' when this function is called because the command-line
+        " was entered from the rhs of a mapping (especially useful for `/ Up CR C-o`)
+        "
+        " This is used when the user has typed someting into the command-line,
+        " but they didn't finish it by hitting "<CR>".
+        "
+        " Because of this, ":h hls" will be left on, which is not what we want.
+        set nohls
 
-            " Remove the saved value
-            unlet! s:hls_on
-        endif
-    endif
-endfu
-
-fu! s:hls_after_slash() abort " {{{1
-    " Restore whatever the saved value is
-    call s:toggle_hls('restore')
-
-    " Don't enable 'hls' when this function is called because the command-line
-    " was entered from the rhs of a mapping (especially useful for `/ Up CR C-o`)
-    if getcmdline() is# '' || state() =~# 'm'
         return
     endif
-
-    " Turn it back on now
-    silent! autocmd! search
-    set hlsearch
-
-    " Why `v:errmsg...` ?{{{
-    "
-    " Open 2 windows with 2 buffers A and B.
-    " In A, search for a pattern which has a match in B but not in A.
-    " Move the cursor: the highlighting should be disabled in B, but it's not.
-    " This is because Vim stops processing a mapping as soon as an error occurs:
-    "
-    " https://github.com/junegunn/vim-slash/issues/5
-    " `:h map-error`
-    "}}}
-    " Why the timer?{{{
-    "
-    " Because we haven't performed the search yet.
-    " `CmdlineLeave` is fired just before.
-    "}}}
-    "   Why not a one-shot autocmd listening to `SafeState`?{{{
-    "
-    " Too early.  If the match is beyond the current screen, Vim will redraw the
-    " latter, and – in the process – erase the message.
-    "}}}
-    " Do *not* move `feedkeys()` outside the timer!{{{
-    "
-    " It could trigger a hit-enter prompt.
-    "
-    " If you move it outside the timer,  it will be run unconditionally; even if
-    " the search fails.
-    " And sometimes, when we would search for some pattern which is not matched,
-    " Vim could display 2 messages.  One for the pattern, and one for E486:
-    "
-    "     /garbage
-    "     E486: Pattern not found: garbage~
-    "
-    " This causes a hit-enter prompt, which is annoying/distracting.
-    " The fed keys don't even seem to matter.
-    " It's hard to reproduce; probably a weird Vim bug...
-    "
-    " Anyway,   after  a   failed   search,   there  is   no   reason  to   feed
-    " `<plug>(ms_custom)`;  there  is no  cursor  to  make  blink, no  index  to
-    " print...  It should be fed only if the pattern was found.
-    "}}}
-    call timer_start(0, {->
-        \ v:errmsg[:4] is# 'E486:'
-        \   ? <SID>setup_au(1)
-        \   : mode() =~# '[nv]' ? feedkeys("\<Plug>(search-visleave)", 'i') : 0})
 endfu
 
-augroup cmd_hls | au!
+augroup cmdline_hl " {{{1
+    au!
+
     " If 'hls' and 'is' are set, then _all_ matches are highlighted when we're
     " writing a regex, not just the next match noted in ":h is".
-    "
-    " First save the value as it is set
-    au CmdlineEnter /,\? call <SID>toggle_hls('save')
+    au CmdlineEnter /,\? set hlsearch
 
     " And now restore it
-    au CmdlineLeave /,\? call <SID>hls_after_slash()
+    au CmdlineLeave /,\? call <SID>after_slash()
 augroup END
 
 " Mappings {{{1
