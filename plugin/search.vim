@@ -1,5 +1,3 @@
-let g:_test = []
-
 fu! s:wrap(seq) " {{{1
     " Command is search, or empty, all other return values
     " from ":h getcmdtype()" should be skipped
