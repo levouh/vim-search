@@ -1,3 +1,8 @@
+if !has('timers') || exists('g:_loaded_search') " {{{
+  finish
+endif
+
+let g:_loaded_search = 1 " }}}
 fu! s:wrap(seq) " {{{1
     " Command is search, or empty, all other return values
     " from ":h getcmdtype()" should be skipped
