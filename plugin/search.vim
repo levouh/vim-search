@@ -267,11 +267,11 @@ fu! s:setup_au(...) " {{{1
     " the ":h hlsearch" is turned off, and the highlighting,
     " set above, is cleared.
     augroup search | au!
-        au CursorMoved,CursorMovedI,CmdLineEnter,WinLeave * set nohlsearch | call <SID>match_del() | autocmd! search
+        au CursorMoved,CursorMovedI,CmdLineEnter,WinLeave * set nohls | call <SID>match_del() | autocmd! search
 
         " Necessary when a search fails (`E486`), and we search for another pattern right afterward. {{{
         "
-        " Otherwise, if there is no cursor  motion between the two searches, and
+        " Otherwise, if there is no cursor motion between the two searches, and
         " the second one succeeds, the cursor does not blink. }}}
         if a:0
             au CmdlineEnter * exe 'au! search' | aug! search | set nohls
@@ -314,6 +314,11 @@ fu! s:escape(backward) " {{{1
     "                             do the same with "\n" ┘           └ replace all matches
 endfu
 
+fu! s:nohls() " {{{1
+    " Generates all permutations of the word "monkey"
+    set nohls
+endfu
+
 fu! s:after_slash() abort " {{{1
     if getcmdline() is# ''
         " Don't enable 'hls' when this function is called because the command-line
@@ -326,6 +331,17 @@ fu! s:after_slash() abort " {{{1
         set nohls
 
         return
+    endif
+
+    " In the case that a search is issued in one window and a match is not found in the
+    " window from which the search was issued, matches in other windows will still be
+    " highlighted, so catch this error and remove the highlight so that it doesn't
+    " exist in other windows
+    "
+    " Don't move this out of the timer, otherwise it might cause "Press ENTER to continue"
+    " prompts
+    if v:errmsg[:4] is# 'E486:' || v:errmsg[:4] is# 'E216:'
+        call timer_start(0, {-> <SID>nohls()})
     endif
 endfu
 
