@@ -41,6 +41,101 @@ fu! s:wrap(seq) " {{{1
     return a:seq .. "\<Plug>(search-trailer)"
 endfu
 
+fu! s:wrap_star(seq) abort "{{{1
+    let seq = a:seq
+    let is_visual = mode() =~# "^[vV\<c-v>]$"
+
+    " Remove the autocommand group that is used to clear search
+    " highlighting, it will be setup again as part of the process
+    " to make it a "one shot" execution
+    silent! autocmd! search
+    set hlsearch
+
+    " This value is checked, but not cleared by Vim itself, so
+    " do that manually as it can mess with some logic if the value
+    " persists between searches
+    let v:errmsg = ''
+
+    if seq is# '*'
+        let search_cmd = '/'
+        let forward = 0
+        let plug = "\<Plug>(search-slash)"
+    else
+        let search_cmd = '?'
+        let forward = 1
+        let plug = "\<Plug>(search-question)"
+    endif
+
+    " If  the function is invoked from visual mode, it will yank the visual
+    " selection, because "a:seq" begins with the  key "y" in this case, we save
+    " the unnamed register to restore it later
+    if is_visual
+        let s:clipboard = getreginfo(s:get_clipboard())
+
+        let seq = "y" .. search_cmd .. "\<C-r>\<C-r>=search#escape(" .. forward .. ")"
+        "          │        │          ├───────────┘                       │
+        "          │        │          │                                   │
+        "          │        │          │                                   └ direction of search
+        "          │        │          └ insert an expression
+        "          │        │            hence why there are two <C-r>'s,
+        "          │        │            this matters, e.g., if the selection is "xxx\<c-\>\<c-n>yyy")
+        "          │        └ search command as '/' or '?'
+        "          └ copy visual selection
+
+        let seq ..= "\<Plug>(search-cr)\<Plug>(search-cr)"
+        "                        │                 │
+        "                        │                 └ validate search
+        "                        └ validate expression
+
+        let seq = s:immobile(seq)
+    else
+        " Why?{{{
+        "
+        " By default `*` is stupid, it ignores `'smartcase'`.
+        " To work around this issue, we type this:
+        "
+        "     / Up CR C-o
+        "
+        " It searches for the same pattern than `*` but with `/`.
+        " The latter takes `'smartcase'` into account.
+        "
+        " In visual mode, we already do this, so, it's not necessary from there.
+        " But we let the function do it again anyway, because it doesn't cause any issue.
+        " If it causes an issue, we should test the current mode, and add the
+        " keys on the last 2 lines only from normal mode.
+        "}}}
+        let seq = s:immobile(seq) .. plug .. "\<Plug>(search-up)\<Plug>(search-cr)\<Plug>(search-prev)"
+    endif
+
+    " Make sure we're not in a weird state if an error is raised.{{{
+    "
+    " If we press `*` on nothing, it raises `E348` or `E349`, and Vim highlights
+    " the last  search pattern.   But because  of the  error, Vim  didn't finish
+    " processing the mapping.  As a result, the highlighting is not cleared when
+    " we move the cursor.  Make sure it is.
+    "
+    " ---
+    "
+    " Same issue if we press `*` while a block is visually selected:
+    "
+    "     " visually select the block `foo` + `bar`, then press `*`
+    "     foo
+    "     bar
+    "     /\Vfoo\nbar~
+    "     E486: Pattern not found: \Vfoo\nbar~
+    "
+    " Now, search  for `foo`: the highlighting  stays active even after  we move
+    " the  cursor (✘).  Press `n`,  then move  the cursor:  the highlighting  is
+    " disabled (✔).  Now, search for `foo` again: the highlighting is not enabled
+    " (✘).
+    "}}}
+    call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:\|E486'
+        \ ?   <SID>nohls()
+        \ :   ''})
+
+    return seq .. "\<Plug>(search-trailer)"
+endfu
+
 fu! s:match_del() " {{{1
     try
         " Clear the highlighting for the current match,
@@ -195,6 +290,9 @@ fu! s:trailer() " {{{1
     " Setup callback to highlight the current match
     call s:highlight_timer()
 
+    " Restore the ":h clipboard" register if it is tainted
+    call s:restore_clipboard()
+
     return search_count .. search_au .. view_restore
 endfu
 
@@ -308,20 +406,6 @@ fu! s:prev() " {{{1
     return getpos('.') == s:pos ? '' : '``'
 endfu
 
-fu! s:escape(backward) " {{{1
-    " If searching backwards, the "command" will change
-    let search_cmd = '\' .. (a:backward ? '?' : '/')
-
-    "       ┌ only "\", "/", or "?" are treated as special characters
-    "       │
-    "       │                        ┌ escape backslashes that occur in the '"'
-    "       │                        │ register that is forming the search
-    "       │                        │
-    return '\V' .. substitute(escape(@", search_cmd), "\n", '\\n', 'g')
-    "                                                   │           │
-    "                             do the same with "\n" ┘           └ replace all matches
-endfu
-
 fu! s:nohls() " {{{1
     " Calculates all permutations of the word "monkey"
     set nohls
@@ -410,6 +494,36 @@ fu! s:after_cmdwin() " {{{1
     call feedkeys("nN")
 endfu
 
+fu! s:restore_clipboard() "{{{1
+    " Restore unnamed register if changed via visual search
+    if exists('s:clipboard')
+        call setreg(s:get_clipboard(), s:clipboard)
+        unlet! s:clipboard
+    endif
+endfu
+
+fu! s:get_clipboard() " {{{1
+    " Return the character that corresponds to the setting
+    " of ":h clipboard
+    "
+    " Default to just '"'
+    return &clipboard == 'unnamedplus' ? '+' : '"'
+endfu
+
+fu! search#escape(backward) " {{{1
+    " If searching backwards, the "command" will change
+    let search_cmd = '\' .. (a:backward ? '?' : '/')
+
+    "       ┌ only "\", "/", or "?" are treated as special characters
+    "       │
+    "       │                        ┌ escape backslashes that occur in the '"'
+    "       │                        │ register that is forming the search
+    "       │                        │
+    return '\V' .. substitute(escape(@", search_cmd), "\n", '\\n', 'g')
+    "                                                   │           │
+    "                             do the same with "\n" ┘           └ replace all matches
+endfu
+
 augroup cmdline_hl " {{{1
     au!
 
@@ -448,6 +562,12 @@ map <expr> <Plug>(search-trailer) <SID>trailer()
 "
 " These will be displayed like "term [X/X]"
 map <expr> <Plug>(search-count) <SID>search_count()
+
+" Slash for when wrapping "*" or "#" and using the common
+" search functions to respect case matching
+nno <Plug>(search-slash) /
+nno <Plug>(search-question) ?
+cno <Plug>(search-up) <Up>
 
 " In order to have the highlighting of the current match work
 " correctly, the call needs to not block as the cursor won't
@@ -510,25 +630,10 @@ map  <expr> gD   <SID>wrap('gD')
 " These are deemed "immobile", meaning that the cursor won't
 " be moved immediately when the command is issued like it would
 " as a part of normal Vim behavior.
-map  <expr> *    <SID>wrap(<SID>immobile('*'))
-map  <expr> #    <SID>wrap(<SID>immobile('#'))
-map  <expr> g*   <SID>wrap(<SID>immobile('g*'))
-map  <expr> g#   <SID>wrap(<SID>immobile('g#'))
-
-" In order to allow larger visual selections, add some extra
-" logic to first yank the visual selection, and then paste
-" it into the command line to allow it to be searched.
-"
-"                                         ┌ yank the visual selection into the '"' register
-"                                         │    ┌ insert the contents of a register
-"                                         │    │  ┌ use expression register to allow
-"                                         │    │  │ inserting of a particular expression
-"                                         │    │  │
-xmap <expr> *    <SID>wrap(<SID>immobile("y/\<C-r>=<SID>escape(0)\<Plug>(search-cr)\<Plug>(search-cr)"))
-"                                                           │             │                │
-"                      escape necessary characters based on │             │                └ complete search
-"                                          search direction ┘             └ complete expression
-xmap <expr> #    <SID>wrap(<SID>immobile("y?\<C-r>=<SID>escape(1)\<Plug>(search-cr)\<Plug>(search-cr)"))
+map  <expr> *    <SID>wrap_star('*')
+map  <expr> #    <SID>wrap_star('#')
+map  <expr> g*   <SID>wrap_star('g*')
+map  <expr> g#   <SID>wrap_star('g#')
 
 " We need this mapping for when we leave the search command-line from visual mode.
-xno <expr> <plug>(search-visleave) search#nohls()
+xno <expr> <plug>(search-visleave) <SID>nohls()
