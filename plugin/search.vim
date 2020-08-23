@@ -38,6 +38,20 @@ fu! s:wrap(seq) " {{{1
     " persists between searches
     let v:errmsg = ''
 
+    " In the case that a term is searched for in one window, but matches
+    " are only found in _other_ windows, the highlight will still happen
+    " in the other windows. Then, because the search was incomplete,
+    " no measures are taken to clear it.
+    "
+    " Note that just above the value of ":h v:errmsg" is cleared, so ideally
+    " if no match is found, this callback will be triggered right afterwards
+    " and clear the highlight in these other windows.
+    "
+    " This most notably happend with '/' and 'n', etc.
+    call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:\|E486'
+        \ ?   s:nohls()
+        \ :   ''})
+
     return a:seq .. "\<Plug>(search-trailer)"
 endfu
 
@@ -130,7 +144,7 @@ fu! s:wrap_star(seq) abort "{{{1
     " (✘).
     "}}}
     call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:\|E486'
-        \ ?   <SID>nohls()
+        \ ?   s:nohls()
         \ :   ''})
 
     return seq .. "\<Plug>(search-trailer)"
@@ -164,7 +178,7 @@ fu! s:highlight_timer() abort " {{{1
     " ":h timer_start" just sets up a callback, so things do not
     " run in parallel, but the callback should be executed almost
     " immediately after the "s:trailer()" method finishes
-    call timer_start(1, {-> s:highlight()})
+    call timer_start(0, {-> s:highlight()})
 endfu
 
 fu! s:highlight(...) abort " {{{1
