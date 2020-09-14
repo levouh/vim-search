@@ -145,7 +145,8 @@ fu! s:wrap_star(seq) abort "{{{1
     "}}}
     call timer_start(0, {-> v:errmsg[:4] =~# 'E34[89]:\|E486'
         \ ?   s:nohls()
-        \ :   ''})
+        \ :   ''}
+    \ )
 
     return seq .. "\<Plug>(search-trailer)"
 endfu
@@ -169,109 +170,13 @@ fu! s:match_del() " {{{1
     return ''
 endfu
 
-fu! s:highlight_timer() abort " {{{1
-    " In order to have the highlighting of the current match work
-    " correctly, the call needs to not block as the cursor won't
-    " be in the right position until the right hand side of
-    " the ":h <expr>" mapping is completed.
-    "
-    " ":h timer_start" just sets up a callback, so things do not
-    " run in parallel, but the callback should be executed almost
-    " immediately after the "s:trailer()" method finishes
-    call timer_start(0, {-> s:highlight()})
-endfu
-
 fu! s:highlight(...) abort " {{{1
-    " The timeout in milliseconds to stop looking for the match
-    let timeout = 30
-    let pos = [line('.'), col('.')]
-
-    " Limit the search to a specific range for performance reasons,
-    " this denotes 25 lines above and 25 lines below
-    let context = 25
-
-    " We could be at the top of the file, so the line number might
-    " be 1 for instance, and subtracting 25 from that would make
-    " it negative, so we need to ensure we don't produce a bad value
-    let top = max([1, pos[0] - context])
-
-    " For the 'stopline' searching downwards, it doesn't matter
-    let bottom = pos[0] + context
-
-    "    ┌ returns a list with the line and column position of the match respectively
-    "    │                ┌ the pattern for the match, i.e. the current search
-    "    │                │    ┌ search backwards
-    "    │                │    │┌ accept match at cursor position
-    "    │                │    ││
-    "    │                │    ││
-    let start = searchpos(@/, 'bc', top, timeout)
-    "                                │         │
-    "                                │         └ timeout in milliseconds
-    "                                └ the line to stop the search at
-
-    if start == [0, 0]
-        " No match found, stop early
-        return ''
-    endif
-
-    "                   ┌ the pattern for the match, i.e. the current search
-    "                   │    ┌ start searching at the cursor position
-    "                   │    │┌ allow a match at the cursor position
-    "                   │    ││┌ move to the end of the match
-    "                   │    │││┌ do not move the cursor
-    "                   │    ││││
-    let end = searchpos(@/, 'zcen', bottom, timeout)
-    "                                  │       │
-    "                                  │       └ timeout in milliseconds
-    "                                  └ the line to stop the search at
-
-    if end == [0, 0]
-        " No match found, stop early
-        return ''
-    endif
-
-    " Determine whether or not we are currently inside a match based on the start and end positions of the match
-    " as found above
-    "               ┌ on or past line     ┌ on or past column   ┌ on or before line ┌ on or before column
-    "               │ start               │ start               │ end               │ end
-    "               ├────────────────┐    ├────────────────┐    ├──────────────┐    ├──────────────┐
-    let is_inside = pos[0] >= start[0] && pos[1] >= start[1] && pos[0] <= end[0] && pos[1] <= end[1]
-
-    if is_inside
-        "           ┌ use magic, although it seems like "matchadd()" will do this by default
-        "           │ ┌ a number will follow this, so this is searching in the line
-        "           │ │ specified by the number that follows it
-        "           │ │       ┌ the line to search on, see ":h /ordinary-atom"
-        "           │ │       │        ┌ specify the 'l'ine
-        "           │ │       │        │
-        let pat = '\m\%' . start[0] . 'l\%' . start[1] . 'c'
-        "                                │       │        │
-        "                                │       │        └ specify the 'c'olumn
-        "                                │       └ column from "searchpos()"
-        "                                └ same idea as line, but specify the column
-
-        if start != end
-            "    ┌ do the same as above, but continue towards the end of the line
-            "    │                                            ┌ small nuance here is to not match end-of-line
-            "    │                                            │
-            let pat .= '\_.*\%' . end[0] . 'l\%' . end[1] . 'c.'
-        endif
-
-        if get(w:, 'blink_id', v:none) isnot# v:none
-            " A highlight for the current window already exists, remove it
-            call s:match_del()
-        endif
-
-        " Use the pattern to highlight the current match properly
-        "
-        "                                             ┌ specifies the priority versus other highlight groups
-        "                                             │
-        let w:blink_id = matchadd('IncSearch', pat, 1000, get(w:, 'blink_id', -1))
-        "                                                                      │
-        "                                                                      └ use the next free ID if none have been found
-    endif
-
-    return ''
+    "                                       ┌ case insensitive
+    "                                       │  ┌ current cursor position
+    "                                       │  │
+    let w:match_id = matchadd('IncSearch', '\c\%#' .. @/)
+    "                                                 │
+    "                                                 └ current search
 endfunction
 
 
@@ -301,8 +206,15 @@ fu! s:trailer() " {{{1
     " Setup/restore a view when searching that includes opening/closing folds, etc.
     let view_restore = "\<Plug>(search-view)"
 
-    " Setup callback to highlight the current match
-    call s:highlight_timer()
+    " In order to have the highlighting of the current match work
+    " correctly, the call needs to not block as the cursor won't
+    " be in the right position until the right hand side of
+    " the ":h <expr>" mapping is completed.
+    "
+    " ":h timer_start" just sets up a callback, so things do not
+    " run in parallel, but the callback should be executed almost
+    " immediately after the "s:trailer()" method finishes
+    call timer_start(0, {-> s:highlight()})
 
     " Restore the ":h clipboard" register if it is tainted
     call s:restore_clipboard()
@@ -582,16 +494,6 @@ map <expr> <Plug>(search-count) <SID>search_count()
 nno <Plug>(search-slash) /
 nno <Plug>(search-question) ?
 cno <Plug>(search-up) <Up>
-
-" In order to have the highlighting of the current match work
-" correctly, the call needs to not block as the cursor won't
-" be in the right position until the right hand side of
-" the ":h <expr>" mapping is completed.
-"
-" ":h timer_start" just sets up a callback, so things do not
-" run in parallel, but the callback should be executed almost
-" immediately after the "s:trailer()" method finishes
-map <expr> <Plug>(search-hl) <SID>highlight_timer()
 
 " This function sets up a one-time autocommand when the
 " window focus changes or the cursor moves to ensure that
