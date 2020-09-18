@@ -159,8 +159,8 @@ fu! s:match_del() " {{{1
         " Only one match should be highlighted at any given
         " time, so don't delete the window-local variable,
         " just delete the match associated with it
-        call matchdelete(get(w:, 'blink_id', -1))
-        unlet w:blink_id
+        call matchdelete(get(w:, 'match_id', -1))
+        unlet w:match_id
     catch
         " There are cases where this may not be set,
         " in which case we want to do nothing as the
